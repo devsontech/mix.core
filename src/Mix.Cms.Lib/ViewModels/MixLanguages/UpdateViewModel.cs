@@ -1,7 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
-using Mix.Cms.Lib.ViewModels.MixSystem;
+using Mix.Cms.Lib.ViewModels.MixCultures;
+using Mix.Common.Helper;
 using Mix.Domain.Core.Models;
 using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
@@ -20,6 +21,14 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
         #region Properties
 
         #region Models
+
+        [JsonProperty("id")]
+        public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+
+        [JsonProperty("cultures")]
+        public List<SupportedCulture> Cultures { get; set; }
 
         [Required]
         [JsonProperty("keyword")]
@@ -40,15 +49,18 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
         [JsonProperty("defaultValue")]
         public string DefaultValue { get; set; }
 
-
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
-
         [JsonProperty("createdBy")]
         public string CreatedBy { get; set; }
-
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("status")]
-        public MixContentStatus Status { get; set; }
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #region Views
@@ -58,6 +70,7 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
 
         [JsonProperty("property")]
         public DataValueViewModel Property { get; set; }
+
         #endregion Views
 
         #endregion Properties
@@ -77,9 +90,13 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
 
         #region Overrides
 
-
         public override MixLanguage ParseModel(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
+            if (Id == 0)
+            {
+                Id = Repository.Max(s => s.Id, _context, _transaction).Data + 1;
+                CreatedDateTime = DateTime.UtcNow;
+            }
             Value = Property.Value ?? Value;
             if (CreatedDateTime == default(DateTime))
             {
@@ -91,22 +108,24 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
             }
             return base.ParseModel(_context, _transaction);
         }
-        
+
         #region Async
+
         public override Task<UpdateViewModel> ParseViewAsync(bool isExpand = true, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             Property = new DataValueViewModel() { DataType = DataType, Value = Value, Name = Keyword };
             return base.ParseViewAsync(isExpand, _context, _transaction);
         }
+
         public override Task<bool> ExpandViewAsync(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             Cultures = LoadCultures(Specificulture, _context, _transaction);
             Property = new DataValueViewModel() { DataType = DataType, Value = Value, Name = Keyword };
             this.Cultures.ForEach(c => c.IsSupported = true);
-            IsClone = true;
-
+            
             return base.ExpandViewAsync(_context, _transaction);
         }
+
         public override async Task<RepositoryResponse<bool>> RemoveRelatedModelsAsync(UpdateViewModel view, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             foreach (var culture in Cultures.Where(c => c.Specificulture != Specificulture))
@@ -122,6 +141,7 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
                 IsSucceed = (await _context.SaveChangesAsync()) > 0
             };
         }
+
         public override async Task<RepositoryResponse<UpdateViewModel>> SaveModelAsync(bool isSaveSubModels = false, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var result = await base.SaveModelAsync(isSaveSubModels, _context, _transaction);
@@ -147,14 +167,13 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
             return result;
         }
 
-        #endregion
+        #endregion Async
 
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             Cultures = LoadCultures(Specificulture, _context, _transaction);
             Property = new DataValueViewModel() { DataType = DataType, Value = Value, Name = Keyword };
-            this.Cultures.ForEach(c => c.IsSupported = true);
-            IsClone = true;
+            this.Cultures.ForEach(c => c.IsSupported = true);            
         }
 
         public override RepositoryResponse<bool> RemoveRelatedModels(UpdateViewModel view, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
@@ -173,13 +192,53 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
             };
         }
 
-
-
         #endregion Overrides
 
         #region Expand
+        public static async Task<RepositoryResponse<bool>> ImportLanguages(List<MixLanguage> arrLanguage, string destCulture
+            , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
+        {
+            var result = new RepositoryResponse<bool>() { IsSucceed = true };
+            bool isRoot = _context == null;
+            var context = _context ?? new MixCmsContext();
+            var transaction = _transaction ?? context.Database.BeginTransaction();
 
-        List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
+            try
+            {
+                foreach (var item in arrLanguage)
+                {
+                    var lang = new UpdateViewModel(item, context, transaction);
+                    lang.Specificulture = destCulture;
+                    lang.CreatedDateTime = DateTime.UtcNow;
+                    var saveResult = await lang.SaveModelAsync(false, context, transaction);
+                    result.IsSucceed = result.IsSucceed && saveResult.IsSucceed;
+                    if (!result.IsSucceed)
+                    {
+                        result.Exception = saveResult.Exception;
+                        result.Errors = saveResult.Errors;
+                        break;
+                    }
+                }
+                UnitOfWorkHelper<MixCmsContext>.HandleTransaction(result.IsSucceed, isRoot, transaction);
+            }
+            catch (Exception ex) // TODO: Add more specific exeption types instead of Exception only
+            {
+                var error = UnitOfWorkHelper<MixCmsContext>.HandleException<ReadMvcViewModel>(ex, isRoot, transaction);
+                result.IsSucceed = false;
+                result.Errors = error.Errors;
+                result.Exception = error.Exception;
+            }
+            finally
+            {
+                if (isRoot)
+                {
+                    context.Dispose();
+                }
+            }
+            return result;
+        }
+
+        private List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var getCultures = SystemCultureViewModel.Repository.GetModelList(_context, _transaction);
             var result = new List<SupportedCulture>();
@@ -199,11 +258,11 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
                             Lcid = culture.Lcid,
                             IsSupported = culture.Specificulture == initCulture || _context.MixLanguage.Any(p => p.Keyword == Keyword && p.Specificulture == culture.Specificulture)
                         });
-
                 }
             }
             return result;
         }
-        #endregion
+
+        #endregion Expand
     }
 }

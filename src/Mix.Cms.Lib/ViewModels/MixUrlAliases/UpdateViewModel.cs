@@ -1,6 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
-using Mix.Cms.Lib.ViewModels.MixSystem;
+using Mix.Cms.Lib.ViewModels.MixCultures;
 using Mix.Domain.Core.Models;
 using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
@@ -17,21 +18,38 @@ namespace Mix.Cms.Lib.ViewModels.MixUrlAliases
         #region Properties
 
         #region Models
+
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
+
         [JsonProperty("sourceId")]
         public string SourceId { get; set; }
+
         [JsonProperty("type")]
         public MixEnums.UrlAliasType Type { get; set; }
+
         [JsonProperty("description")]
         public string Description { get; set; }
-        [JsonProperty("status")]
-        public MixEnums.MixContentStatus Status { get; set; }
+
         [Required]
         [JsonProperty("alias")]
         public string Alias { get; set; }
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #endregion Properties
@@ -57,7 +75,6 @@ namespace Mix.Cms.Lib.ViewModels.MixUrlAliases
             {
                 Id = UpdateViewModel.Repository.Max(c => c.Id).Data + 1;
                 CreatedDateTime = DateTime.UtcNow;
-                IsClone = true;
                 Cultures = Cultures ?? LoadCultures(Specificulture, _context, _transaction);
                 Cultures.ForEach(c => c.IsSupported = true);
             }
@@ -82,10 +99,12 @@ namespace Mix.Cms.Lib.ViewModels.MixUrlAliases
                 }
             }
         }
+
         #endregion Overrides
 
         #region Expand
-        List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
+
+        private List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var getCultures = SystemCultureViewModel.Repository.GetModelList(_context, _transaction);
             var result = new List<SupportedCulture>();
@@ -105,12 +124,11 @@ namespace Mix.Cms.Lib.ViewModels.MixUrlAliases
                             Lcid = culture.Lcid,
                             IsSupported = culture.Specificulture == initCulture || _context.MixUrlAlias.Any(p => p.Id == Id && p.Specificulture == culture.Specificulture)
                         });
-
                 }
             }
             return result;
         }
-        #endregion
 
+        #endregion Expand
     }
 }

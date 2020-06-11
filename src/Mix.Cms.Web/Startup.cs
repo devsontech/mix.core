@@ -1,125 +1,72 @@
-﻿using Microsoft.AspNet.OData.Extensions;
+using GraphiQl;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity.UI.Services;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.WebEncoders;
-using Mix.Cms.Hub;
+using Microsoft.Extensions.Hosting;
+using Mix.Cms.Api.RestFul;
+using Mix.Cms.Lib.Extensions;
 using Mix.Cms.Lib.Models.Account;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
-using Mix.Identity.Services;
-using System.Text.Encodings.Web;
-using System.Text.Unicode;
+using Mix.Cms.Messenger.Models.Data;
+//using Mix.Cms.Service.Gprc;
+using Mix.Cms.Service.SignalR;
+using Newtonsoft.Json.Converters;
+using System.Text.Json.Serialization;
 
 namespace Mix.Cms.Web
 {
     public partial class Startup
     {
-        public Startup(IConfiguration configuration, IHostingEnvironment env)
+        public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-            this.env = env;
-
         }
 
         public IConfiguration Configuration { get; }
-        public IHostingEnvironment env { get; }
+
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddControllersWithViews()
+                .AddRazorRuntimeCompilation()
+                .AddNewtonsoftJson(options => { options.SerializerSettings.Converters.Add(new StringEnumConverter()); });
+
+            #region Addictionals Config for Mixcore Cms
+
+            /* Addictional Config for Mixcore Cms  */
+
+            /* Mix: Add db contexts */
             services.AddDbContext<MixCmsContext>();
             services.AddDbContext<MixDbContext>();
-            if (!MixService.GetConfig<bool>("IsInit"))
-            {
-                using (var ctx = new MixCmsContext())
-                {
-                    ctx.Database.Migrate();
-                }
-            }
-            // Enforce Request using https schema
-            if (env.IsDevelopment())
-            {
-                if (MixService.GetConfig<bool>("IsHttps"))
-                {
-                    services.AddHttpsRedirection(options =>
-                    {
-                        options.RedirectStatusCode = StatusCodes.Status308PermanentRedirect;
-                        options.HttpsPort = 5001;
-                    });
-                }
-            }
-            else
-            {
-                if (MixService.GetConfig<bool>("IsHttps"))
-                {
-                    services.AddHttpsRedirection(options =>
-                {
-                    options.RedirectStatusCode = StatusCodes.Status308PermanentRedirect;
-                    options.HttpsPort = 443;
-                });
-                }
-            }
+            services.AddDbContext<MixChatServiceContext>();
+            /* Mix: End Add db contexts */
 
-            // Config cookie options
-            services.Configure<CookiePolicyOptions>(options =>
-            {
-                // This lambda determines whether user consent for non-essential cookies is needed for a given request.
-                options.CheckConsentNeeded = context => true;
-                options.MinimumSameSitePolicy = SameSiteMode.None;
-            });
+            /* Mix: Inject Services */
+            services.AddControllers(mvcOptions => mvcOptions.EnableEndpointRouting = false);
+            services.AddGenerateApis();
+            services.AddMixRestApi();
+            services.AddMixSignalR();
+            //services.AddMixGprc();
 
-
-            // Config Authenticate 
-            // App_Start/Startup.Auth.cs
-            ConfigAuthorization(services, Configuration);
-
-
-            //When View Page Source That changes only the HTML encoder, leaving the JavaScript and URL encoders with their (ASCII) defaults.
-            services.Configure<WebEncoderOptions>(options => options.TextEncoderSettings = new TextEncoderSettings(UnicodeRanges.All));
-
-            // add application services.
-            services.AddTransient<IEmailSender, AuthEmailMessageSender>();
-            services.AddTransient<ISmsSender, AuthSmsMessageSender>();
-            services.AddSingleton<MixService>();
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-
-            // add signalr
-            services.AddSignalR();
-            services.AddOData();
-            services.AddODataQueryFilter();
-            // Config server caching
-            services.AddMvc(options =>
-            {
-                options.CacheProfiles.Add("Default",
-                    new CacheProfile()
-                    {
-                        Duration = 60
-                    });
-                options.CacheProfiles.Add("Never",
-                    new CacheProfile()
-                    {
-                        Location = ResponseCacheLocation.None,
-                        NoStore = true
-                    });                
-            }).AddJsonOptions(options => options.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver())
-            .SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             
-            services.Configure<RazorViewEngineOptions>(options => {
-                options.AllowRecompilingViewsOnFileChange = true;
-            });
-            services.AddMemoryCache();
+            /* Mix: End Inject Services */
+
+            VerifyInitData(services);
+
+            services.AddMixAuthorize(Configuration);
+
+            /* End Addictional Config for Mixcore Cms  */
+
+            #endregion Addictionals Config for Mixcore Cms
 
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -127,47 +74,64 @@ namespace Mix.Cms.Web
             }
             else
             {
-                app.UseExceptionHandler("/Error/404");
+                app.UseExceptionHandler("/Home/Error");
+                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
-            // add Ip Filter            
+            var provider = new FileExtensionContentTypeProvider();
+            // Add new mappings
+            provider.Mappings[".vue"] = "application/text";
+
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                ContentTypeProvider = provider
+            });
+
+            //app.UseStaticFiles();
+            app.UseGraphiQl("/api/graphql");
+            
+            app.UseRouting();
+            app.UseAuthentication();
+            app.UseAuthorization();
+            app.UseMixRestApi();
+            #region Addictionals Config for Mixcore Cms
 
             if (MixService.GetConfig<bool>("IsHttps"))
             {
                 app.UseHttpsRedirection();
             }
-            app.UseCors(opt =>
-            {
-                opt.AllowAnyOrigin();
-                opt.AllowAnyHeader();
-                opt.AllowAnyMethod();
-            });
+            app.UseMixRestApi();
+            //app.UseMixGprc();
 
-            var cachePeriod = env.IsDevelopment() ? "600" : "604800";
+            app.UseMixSignalR();
 
-            FileExtensionContentTypeProvider provider = new FileExtensionContentTypeProvider();
-            provider.Mappings[".webmanifest"] = "application/manifest+json";
-            app.UseStaticFiles(new StaticFileOptions
+            app.UseMixRoutes();
+
+            #endregion Addictionals Config for Mixcore Cms
+        }
+
+        // Mix: Check custom cms config
+        private void VerifyInitData(IServiceCollection services)
+        {
+            // Mix: Migrate db if already inited
+
+            //if (!MixService.GetConfig<bool>("IsInit"))
+            //{
+            //    using (var ctx = new MixCmsContext())
+            //    {
+            //        ctx.Database.Migrate();
+            //    }
+            //}
+
+            // Mix: Check if require ssl
+            if (MixService.GetConfig<bool>("IsHttps"))
             {
-                OnPrepareResponse = ctx =>
+                services.AddHttpsRedirection(options =>
                 {
-                    // Requires the following import:
-                    // using Microsoft.AspNetCore.Http;
-                    ctx.Context.Response.Headers.Append("Cache-Control", $"public, max-age={cachePeriod}");
-                },
-                ContentTypeProvider = provider
-            });
-            app.UseCookiePolicy();
-            app.UseSignalR(route =>
-            {
-                route.MapHub<PortalHub>("/portalhub");
-
-                route.MapHub<ServiceHub>("/servicehub");//route.MapHub<MixChatHub>("/MixChatHub");
-            });
-
-            app.UseAuthentication();
-            
-            ConfigRoutes(app);
+                    options.RedirectStatusCode = StatusCodes.Status308PermanentRedirect;
+                    options.HttpsPort = 443;
+                });
+            }
         }
     }
 }

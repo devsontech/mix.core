@@ -39,7 +39,7 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
         public string FileName { get; set; }
 
         [JsonProperty("extension")]
-        public string Extension { get; set; }
+        public string Extension { get; set; } = ".cshtml";
 
         [Required]
         [JsonProperty("content")]
@@ -57,14 +57,18 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
         [JsonProperty("styles")]
         public string Styles { get; set; }
 
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
-
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
         [JsonProperty("modifiedBy")]
         public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
 
         #endregion Models
 
@@ -74,10 +78,8 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
         public string Layout { get; set; }
 
         [JsonProperty("assetFolder")]
-        public string AssetFolder
-        {
-            get
-            {
+        public string AssetFolder {
+            get {
                 return CommonHelper.GetFullPath(new string[] {
                     MixConstants.Folder.FileFolder,
                     MixConstants.Folder.TemplatesAssetFolder,
@@ -86,24 +88,19 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
         }
 
         [JsonProperty("templateFolder")]
-        public string TemplateFolder
-        {
-            get
-            {
+        public string TemplateFolder {
+            get {
                 return CommonHelper.GetFullPath(new string[] {
                     MixConstants.Folder.TemplatesFolder, SeoHelper.GetSEOString(ThemeName) });
             }
         }
 
         [JsonProperty("templatePath")]
-        public string TemplatePath
-        {
-            get
-            {
+        public string TemplatePath {
+            get {
                 return $"/{FileFolder}/{FileName}{Extension}";
             }
         }
-
 
         #endregion Views
 
@@ -129,11 +126,15 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
 
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
-            var file = FileRepository.Instance.GetFile(FileName, Extension, FileFolder);
-            if (!string.IsNullOrWhiteSpace(file?.Content))
+            if (!string.IsNullOrEmpty(FileName))
             {
-                Content = file.Content;
+                var file = FileRepository.Instance.GetFile(FileName, Extension, FileFolder);
+                if (!string.IsNullOrWhiteSpace(file?.Content))
+                {
+                    Content = file.Content;
+                }
             }
+            
         }
 
         public override void Validate(MixCmsContext _context, IDbContextTransaction _transaction)
@@ -147,6 +148,10 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
                     {
                         FileName = $"{FileName}_1";
                     }
+                }
+                if (string.IsNullOrEmpty(ThemeName) && ThemeId > 0)
+                {
+                    ThemeName = _context.MixTheme.FirstOrDefault(m => m.Id == ThemeId)?.Name;
                 }
             }
         }
@@ -174,6 +179,7 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
         #endregion Common
 
         #region Async
+
         public override async Task<RepositoryResponse<UpdateViewModel>> SaveModelAsync(bool isSaveSubModels = false, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var result = await base.SaveModelAsync(isSaveSubModels, _context, _transaction);
@@ -183,6 +189,7 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
             }
             return result;
         }
+
         public override RepositoryResponse<MixTemplate> RemoveModel(bool isRemoveRelatedModels = false, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var result = base.RemoveModel(isRemoveRelatedModels, _context, _transaction);
@@ -237,7 +244,6 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
 
         #region Expands
 
-
         /// <summary>
         /// Gets the template by path.
         /// </summary>
@@ -257,8 +263,8 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
             {
                 int activeThemeId = MixService.GetConfig<int>(
                     MixConstants.ConfigurationKeyword.ThemeId, culture);
-
-                result = Repository.GetSingleModel(t => t.FolderType == temp[0] && t.FileName == temp[1].Split('.')[0] && t.ThemeId == activeThemeId
+                string name = temp[1].Split('.')[0];
+                result = Repository.GetSingleModel(t => t.FolderType == temp[0] && t.FileName == name && t.ThemeId == activeThemeId
                     , _context, _transaction);
             }
             return result;
@@ -297,8 +303,16 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
                 FolderType = folderType.ToString(),
                 FileFolder = folder.ToString()
             });
-
         }
-        #endregion
+
+        public async Task<RepositoryResponse<UpdateViewModel>> CopyAsync()
+        {
+            var result = await Repository.GetSingleModelAsync(m => m.Id == Id);
+            result.Data.Id = 0;
+            result.Data.FileName = $"Copy_{result.Data.FileName}";
+            // Not write file to disk
+            return await result.Data.SaveModelAsync(false);
+        }
+        #endregion Expands
     }
 }

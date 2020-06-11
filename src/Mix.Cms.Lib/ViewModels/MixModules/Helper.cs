@@ -1,6 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
-using Mix.Cms.Lib.ViewModels.MixSystem;
+using Mix.Cms.Lib.ViewModels.MixCultures;
 using Mix.Common.Helper;
 using Mix.Domain.Core.Models;
 using Mix.Domain.Core.ViewModels;
@@ -39,7 +40,6 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
             }
             catch (Exception ex) // TODO: Add more specific exeption types instead of Exception only
             {
-
                 var error = UnitOfWorkHelper<MixCmsContext>.HandleException<ReadMvcViewModel>(ex, isRoot, transaction);
                 result.IsSucceed = false;
                 result.Errors = error.Errors;
@@ -50,9 +50,8 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                 //if current Context is Root
                 if (isRoot)
                 {
-                    context?.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
-
             }
             return result;
         }
@@ -77,7 +76,6 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                             Lcid = culture.Lcid,
                             IsSupported = culture.Specificulture == initCulture || _context.MixModule.Any(p => p.Id == id && p.Specificulture == culture.Specificulture)
                         });
-
                 }
             }
             return result;
@@ -95,6 +93,5 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
             }
             return result;
         }
-
     }
 }

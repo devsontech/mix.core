@@ -1,8 +1,7 @@
 ﻿// Licensed to the mixcore Foundation under one or more agreements.
-// The mixcore Foundation licenses this file to you under the GNU General Public License v3.0 license.
+// The mixcore Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Microsoft.AspNet.OData.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Rewrite;
@@ -13,9 +12,9 @@ using System.IO;
 
 namespace Mix.Cms.Web
 {
-    public partial class Startup
+    public static class MixRoutesServiceCollectionExtensions
     {
-        protected void ConfigRoutes(IApplicationBuilder app)
+        public static IApplicationBuilder UseMixRoutes(this IApplicationBuilder app)
         {
             if (MixService.GetConfig<bool>("IsRewrite"))
             {
@@ -25,9 +24,6 @@ namespace Mix.Cms.Web
                     File.OpenText("IISUrlRewrite.xml"))
                 {
                     var options = new RewriteOptions()
-                        .AddRedirect("redirect-rule/(.*)", "redirected/$1")
-                        .AddRewrite(@"^rewrite-rule/(\d+)/(\d+)", "rewritten?var1=$1&var2=$2",
-                            skipRemainingRules: true)
                         .AddApacheModRewrite(apacheModRewriteStreamReader)
                         .AddIISUrlRewrite(iisUrlRewriteStreamReader)
                         .Add(MethodRules.RedirectXMLRequests);
@@ -40,34 +36,24 @@ namespace Mix.Cms.Web
             //$"Rewritten or Redirected Url: " +
             //$"{context.Request.Path + context.Request.QueryString}"));
             }
-            app.UseMvc(routes =>
+            app.UseEndpoints(routes =>
             {
-                routes.MapRoute(
-                    name: "Alias",
-                    template: "{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/{seoName}");
-                routes.MapRoute(
-                   name: "Page",
-                   template: "{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/{seoName}");
-                routes.MapRoute(
-                    name: "File",
-                    template: "{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/portal/file");
-                routes.MapRoute(
-                    name: "Post",
-                    template: "{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/post/{id}/{seoName}");
-                routes.MapRoute( 
-                    name: "Module",
-                    template: "{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/md/{id}/{seoName}");
-
-                // uncomment the following line to Work-around for #1175 in beta1
-                routes.EnableDependencyInjection();
-
-                // and this line to enable OData query option, for example $filter
-                routes.Select().Expand().Filter().OrderBy().MaxTop(100).Count();
-                //routes.MapODataServiceRoute("ODataRoute", "odata", builder.GetEdmModel());
-
-
+                routes.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Home}/{alias}");
+                routes.MapControllerRoute(
+                   name: "page",
+                   pattern: "{controller=Page}/{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/{seoName}"); routes.MapControllerRoute(
+                    name: "vue",
+                    pattern: "{controller=Vue}/{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/{seoName}");
+                routes.MapControllerRoute(
+                    name: "file",
+                    pattern: "{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/portal/file");
+                routes.MapControllerRoute(
+                    name: "post",
+                    pattern: "{culture=" + MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultCulture) + "}/post/{id}/{seoName}");
             });
+            return app;
         }
-
     }
 }

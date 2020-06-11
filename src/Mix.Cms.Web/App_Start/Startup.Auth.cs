@@ -1,8 +1,9 @@
 ﻿// Licensed to the mixcore Foundation under one or more agreements.
-// The mixcore Foundation licenses this file to you under the GNU General Public License v3.0 license.
+// The mixcore Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,21 +13,13 @@ using Mix.Cms.Lib.Services;
 using Mix.Identity.Models;
 using System;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Mix.Cms.Web
 {
     //Ref: https://www.blinkingcaret.com/2017/09/06/secure-web-api-in-asp-net-core/
-    public partial class Startup
+    public static class AuthServiceCollectionExtensions
     {
-        protected void ConfigAuthorization(IServiceCollection services, IConfiguration Configuration)
-        {
-            ConfigIdentity(services, Configuration);
-            ConfigJWTToken(services, Configuration);
-            ConfigCookieAuth(services, Configuration);
-        }
-
-        private void ConfigIdentity(IServiceCollection services, IConfiguration Configuration)
+        public static IServiceCollection AddMixAuthorize(this IServiceCollection services, IConfiguration Configuration)
         {
             PasswordOptions pOpt = new PasswordOptions()
             {
@@ -36,10 +29,11 @@ namespace Mix.Cms.Web
                 RequireNonAlphanumeric = false,
                 RequireUppercase = false
             };
-
+            
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Password = pOpt;
+                
             })
                 .AddEntityFrameworkStores<MixDbContext>()
                 .AddDefaultTokenProviders()
@@ -47,21 +41,9 @@ namespace Mix.Cms.Web
 
                 ;
 
-            services.AddAuthorization(options =>
-            {
-                options.AddPolicy("AddEditUser", policy =>
-                {
-                    policy.RequireClaim("Add User");
-                    policy.RequireClaim("Edit User");
-                });
-                options.AddPolicy("DeleteUser", policy => policy.RequireClaim("Delete User"));
-            })
-             ;
-        }
+            services.AddAuthorization();
 
-        protected void ConfigJWTToken(IServiceCollection services, IConfiguration Configuration)
-        {
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            services.AddAuthentication("Bearer")
                     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
                     {
                         options.RequireHttpsMetadata = false;
@@ -96,22 +78,23 @@ namespace Mix.Cms.Web
 
                         //};
                     });
-            //services.AddAuthentication("Bearer");
-        }
-
-        protected void ConfigCookieAuth(IServiceCollection services, IConfiguration Configuration)
-        {
             services.ConfigureApplicationCookie(options =>
             {
                 options.Cookie.HttpOnly = true;
                 options.Cookie.MaxAge = TimeSpan.FromMinutes(MixService.GetAuthConfig<int>("CookieExpiration"));
-                options.Cookie.Expiration = TimeSpan.FromMinutes(MixService.GetAuthConfig<int>("CookieExpiration"));
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(MixService.GetAuthConfig<int>("CookieExpiration"));
+                //options.Cookie.Expiration = TimeSpan.FromMinutes(MixService.GetAuthConfig<int>("CookieExpiration"));
                 options.LoginPath = "/security/login"; // If the LoginPath is not set here, ASP.NET Core will default to /Account/Login
                 options.LogoutPath = "/"; // If the LogoutPath is not set here, ASP.NET Core will default to /Account/Logout
                 options.AccessDeniedPath = "/security/login"; // If the MixConstants.Default.DefaultCulture is not set here, ASP.NET Core will default to /Account/AccessDenied
                 options.SlidingExpiration = true;
-
             });
+            return services;
+        }
+
+        public static IApplicationBuilder UseMixAuthorize(this IApplicationBuilder app)
+        {
+            return app;
         }
 
         protected static class JwtSecurityKey

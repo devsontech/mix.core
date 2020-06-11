@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Mix.Cms.Api.Helpers;
 using Mix.Cms.Lib;
@@ -98,9 +99,14 @@ namespace Mix.Cms.Api.Controllers.v1
                         return Ok(loginResult);
                     }
                 }
+                if (result.IsLockedOut)
+                {
+                    loginResult.Errors.Add("This account has been locked out, please try again later.");
+                    return BadRequest(loginResult);
+                }
                 else
                 {
-                    loginResult.Errors.Add("login failed");
+                    loginResult.Errors.Add("Login failed");
                     return BadRequest(loginResult);
                 }
             }
@@ -188,6 +194,10 @@ namespace Mix.Cms.Api.Controllers.v1
                     user = await _userManager.FindByEmailAsync(model.Email).ConfigureAwait(false);
                     model.Id = user.Id;
                     model.CreatedDateTime = DateTime.UtcNow;
+                    model.Status = MixUserStatus.Actived;
+                    model.LastModified = DateTime.UtcNow;
+                    model.CreatedBy = User.Identity.Name;
+                    model.ModifiedBy = User.Identity.Name;
                     // Save to cms db context
                     await model.SaveModelAsync();
                     var token = await _helper.GenerateAccessTokenAsync(user, true);
@@ -287,7 +297,7 @@ namespace Mix.Cms.Api.Controllers.v1
                     }
                     else
                     {
-                        var model = new MixCmsUser() { Status = (int)MixUserStatus.Actived };
+                        var model = new MixCmsUser() { Status = MixUserStatus.Actived.ToString() };
 
                         RepositoryResponse<Lib.ViewModels.Account.MixUsers.UpdateViewModel> result = new RepositoryResponse<Lib.ViewModels.Account.MixUsers.UpdateViewModel>()
                         {
@@ -305,7 +315,7 @@ namespace Mix.Cms.Api.Controllers.v1
                     }
                     else
                     {
-                        var model = new MixCmsUser() { Status = (int)MixUserStatus.Actived };
+                        var model = new MixCmsUser() { Status = MixUserStatus.Actived.ToString() };
 
                         RepositoryResponse<UserInfoViewModel> result = new RepositoryResponse<UserInfoViewModel>()
                         {
@@ -338,7 +348,6 @@ namespace Mix.Cms.Api.Controllers.v1
                 };
                 return JObject.FromObject(result);
             }
-
         }
 
         // POST api/template
@@ -376,7 +385,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         Request.HttpContext.Response.StatusCode = 401;
                     }
-
                 }
                 return result;
             }
@@ -390,12 +398,12 @@ namespace Mix.Cms.Api.Controllers.v1
         public async Task<RepositoryResponse<PaginationModel<UserInfoViewModel>>> GetList(RequestPaging request)
         {
             Expression<Func<MixCmsUser, bool>> predicate = model =>
-                (!request.Status.HasValue || model.Status == request.Status.Value)
+                (string.IsNullOrEmpty(request.Status) || model.Status == request.Status)
                 && (string.IsNullOrWhiteSpace(request.Keyword)
                 || (
-                    model.Username.Contains(request.Keyword)
-                   || model.FirstName.Contains(request.Keyword)
-                   || model.LastName.Contains(request.Keyword)
+                    (EF.Functions.Like(model.Username, $"%{request.Keyword}%"))
+                   || (EF.Functions.Like(model.FirstName, $"%{request.Keyword}%"))
+                   || (EF.Functions.Like(model.LastName, $"%{request.Keyword}%"))
                    )
                 )
                 && (!request.FromDate.HasValue
@@ -447,11 +455,18 @@ namespace Mix.Cms.Api.Controllers.v1
                     await _userManager.GeneratePasswordResetTokenAsync(user);
 
             var callbackurl = $"{Request.Scheme}://{Request.Host}/security/reset-password/?token={System.Web.HttpUtility.UrlEncode(confrimationCode)}";
-
+            var getEdmTemplate = await Lib.ViewModels.MixTemplates.ReadViewModel.Repository.GetSingleModelAsync(
+                m => m.FolderType == MixConstants.TemplateFolder.Edms && m.FileName == "ForgotPassword");
+            string content = callbackurl;
+            if (getEdmTemplate.IsSucceed)
+            {
+                content = getEdmTemplate.Data.Content.Replace("[URL]", callbackurl);
+                
+            }
             MixService.SendMail(
-                to: user.Email,
-                subject: "Reset Password",
-                message: callbackurl);
+                    to: user.Email,
+                    subject: "Reset Password",
+                    message: content);
 
             return result;
         }
@@ -479,6 +494,7 @@ namespace Mix.Cms.Api.Controllers.v1
 
             return result;
         }
+
         [HttpGet]
         [Authorize(Roles = "SuperAdmin")]
         [Route("remove-user/{id}")]
@@ -505,7 +521,5 @@ namespace Mix.Cms.Api.Controllers.v1
 
             return result;
         }
-
-
     }
 }

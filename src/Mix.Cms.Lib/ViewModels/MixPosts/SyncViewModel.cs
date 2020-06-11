@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
-using Mix.Cms.Lib.ViewModels.MixSystem;
+using Mix.Cms.Lib.ViewModels.MixCultures;
 using Mix.Common.Helper;
 using Mix.Domain.Core.Models;
 using Mix.Domain.Core.ViewModels;
@@ -20,13 +20,16 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
     public class SyncViewModel
          : ViewModelBase<MixCmsContext, MixPost, SyncViewModel>
     {
-
         #region Properties
 
         #region Models
 
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [JsonProperty("template")]
         public string Template { get; set; }
@@ -77,29 +80,25 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public int? Views { get; set; }
 
         [JsonProperty("type")]
-        public int Type { get; set; }
-
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
+        public MixContentStatus Type { get; set; }
 
         [JsonProperty("publishedDateTime")]
         public DateTime? PublishedDateTime { get; set; }
 
-        [JsonProperty("createdBy")]
-        public string CreatedBy { get; set; }
-
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
-        [JsonProperty("modifiedBy")]
-        public string ModifiedBy { get; set; }
-
         [JsonProperty("tags")]
         public string Tags { get; set; } = "[]";
 
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("status")]
         public MixEnums.MixContentStatus Status { get; set; }
-
         #endregion Models
 
         #region Views
@@ -140,28 +139,22 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public List<MixTemplates.UpdateViewModel> Templates { get; set; }// Post Templates
 
         [JsonIgnore]
-        public int ActivedTheme
-        {
-            get
-            {
+        public int ActivedTheme {
+            get {
                 return MixService.GetConfig<int>(MixConstants.ConfigurationKeyword.ThemeId, Specificulture);
             }
         }
 
         [JsonIgnore]
-        public string TemplateFolderType
-        {
-            get
-            {
+        public string TemplateFolderType {
+            get {
                 return MixEnums.EnumTemplateFolder.Posts.ToString();
             }
         }
 
         [JsonProperty("templateFolder")]
-        public string TemplateFolder
-        {
-            get
-            {
+        public string TemplateFolder {
+            get {
                 return CommonHelper.GetFullPath(new string[]
                 {
                     MixConstants.Folder.TemplatesFolder
@@ -175,10 +168,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         #endregion Template
 
         [JsonProperty("imageUrl")]
-        public string ImageUrl
-        {
-            get
-            {
+        public string ImageUrl {
+            get {
                 if (!string.IsNullOrEmpty(Image) && (Image.IndexOf("http") == -1) && Image[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -193,10 +184,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         }
 
         [JsonProperty("thumbnailUrl")]
-        public string ThumbnailUrl
-        {
-            get
-            {
+        public string ThumbnailUrl {
+            get {
                 if (Thumbnail != null && Thumbnail.IndexOf("http") == -1 && Thumbnail[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -221,6 +210,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("columns")]
         public List<ModuleFieldViewModel> Columns { get; set; }
+
         #endregion Views
 
         #endregion Properties
@@ -319,7 +309,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 m => (m.Type == (int)MixEnums.MixModuleType.Content || m.Type == (int)MixEnums.MixModuleType.ListPost)
                 && m.Specificulture == Specificulture
                 && !Modules.Any(n => n.ModuleId == m.Id && n.Specificulture == m.Specificulture)
-                , "CreatedDateTime", 1, null, 0, _context, _transaction);
+                , "CreatedDateTime", Heart.Enums.MixHeartEnums.DisplayDirection.Desc, null, 0, _context, _transaction);
             foreach (var item in otherModules.Data.Items)
             {
                 Modules.Add(new MixModulePosts.ReadViewModel()
@@ -352,7 +342,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             }
             var otherModuleNavs = MixModules.ReadMvcViewModel.Repository.GetModelListBy(
                 m => (m.Type == (int)MixEnums.MixModuleType.SubPost) && m.Specificulture == Specificulture
-                && !ModuleNavs.Any(n => n.ModuleId == m.Id), "CreatedDateTime", 1, null, 0, _context, _transaction);
+                && !ModuleNavs.Any(n => n.ModuleId == m.Id), "CreatedDateTime", Heart.Enums.MixHeartEnums.DisplayDirection.Desc, null, 0, _context, _transaction);
             foreach (var item in otherModuleNavs.Data.Items)
             {
                 item.LoadData(postId: Id, _context: _context, _transaction: _transaction);
@@ -371,7 +361,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             var otherPosts = MixPosts.ReadListItemViewModel.Repository.GetModelListBy(
                 m => m.Id != Id && m.Specificulture == Specificulture
                     && !PostNavs.Any(n => n.SourceId == Id)
-                    , "CreatedDateTime", 1, 10, 0, _context, _transaction);
+                    , "CreatedDateTime", Heart.Enums.MixHeartEnums.DisplayDirection.Desc, 10, 0, _context, _transaction);
             foreach (var item in otherPosts.Data.Items)
             {
                 PostNavs.Add(new MixPostPosts.ReadViewModel()
@@ -485,7 +475,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                             startMediaId += 1;
                             navMedia.Media.Specificulture = Specificulture;
                             navMedia.Media.Id = startMediaId;
-                            navMedia.Media.Cultures = Cultures;
                             var saveMedia = await navMedia.Media.SaveModelAsync(false, _context, _transaction);
                             if (saveMedia.IsSucceed)
                             {
@@ -653,7 +642,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             var result = new RepositoryResponse<bool>() { IsSucceed = true };
             try
             {
-
                 if (result.IsSucceed)
                 {
                     var startMediaId = MixMedias.UpdateViewModel.Repository.Max(c => c.Id).Data;
@@ -663,7 +651,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                         {
                             startMediaId += 1;
                             navMedia.Media.Specificulture = Specificulture;
-                            navMedia.Media.Cultures = Cultures;
                             navMedia.Media.Id = startMediaId;
                             var saveMedia = navMedia.Media.SaveModel(false, _context, _transaction);
                             if (saveMedia.IsSucceed)
@@ -717,7 +704,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                         }
                     }
                 }
-
 
                 if (result.IsSucceed)
                 {
@@ -857,12 +843,13 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             return result;
         }
 
-        #endregion  Methods
+        #endregion Sync Methods
 
         #endregion Overrides
 
         #region Expands
-        List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
+
+        private List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var getCultures = SystemCultureViewModel.Repository.GetModelList(_context, _transaction);
             var result = new List<SupportedCulture>();
@@ -882,7 +869,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                             Lcid = culture.Lcid,
                             IsSupported = culture.Specificulture == initCulture || _context.MixPost.Any(p => p.Id == Id && p.Specificulture == culture.Specificulture)
                         });
-
                 }
             }
             return result;
@@ -925,6 +911,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             navs.ForEach(n => n.IsActived = true);
             return navs.OrderBy(p => p.Priority).ToList();
         }
+
         public List<MixUrlAliases.UpdateViewModel> GetAliases(MixCmsContext context, IDbContextTransaction transaction)
         {
             var result = MixUrlAliases.UpdateViewModel.Repository.GetModelListBy(p => p.Specificulture == Specificulture
@@ -938,6 +925,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 return new List<MixUrlAliases.UpdateViewModel>();
             }
         }
+
         #endregion Expands
     }
 }

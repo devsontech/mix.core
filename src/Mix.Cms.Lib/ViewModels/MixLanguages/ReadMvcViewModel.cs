@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Common.Helper;
+using Mix.Domain.Core.Models;
 using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
@@ -20,6 +22,14 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
 
         #region Models
 
+        [JsonProperty("id")]
+        public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        
+        [JsonProperty("cultures")]
+        public List<SupportedCulture> Cultures { get; set; }
+
         [Required]
         [JsonProperty("keyword")]
         public string Keyword { get; set; }
@@ -38,16 +48,28 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
 
         [JsonProperty("defaultValue")]
         public string DefaultValue { get; set; }
-        [JsonProperty("status")]
-        public MixContentStatus Status { get; set; }
+
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #region Views
+
         [JsonProperty("property")]
         public DataValueViewModel Property { get; set; }
-        #endregion
+
+        #endregion Views
+
         #endregion Properties
 
         #region Contructors
@@ -64,12 +86,12 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
         #endregion Contructors
 
         #region Overrides
+
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             Property = new DataValueViewModel() { DataType = DataType, Value = Value, Name = Keyword };
-            this.Cultures.ForEach(c => c.IsSupported = true);
-            IsClone = true;
         }
+
         public override RepositoryResponse<bool> RemoveRelatedModels(ReadMvcViewModel view, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             foreach (var culture in Cultures.Where(c => c.Specificulture != Specificulture))
@@ -106,49 +128,7 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
 
         #region Expands
 
-        public static async Task<RepositoryResponse<bool>> ImportLanguages(List<MixLanguage> arrLanguage, string destCulture
-            , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
-        {
-            var result = new RepositoryResponse<bool>() { IsSucceed = true };
-            bool isRoot = _context == null;
-            var context = _context ?? new MixCmsContext();
-            var transaction = _transaction ?? context.Database.BeginTransaction();
-
-            try
-            {
-                foreach (var item in arrLanguage)
-                {
-                    var lang = new ReadMvcViewModel(item, context, transaction);
-                    lang.Specificulture = destCulture;
-                    lang.CreatedDateTime = DateTime.UtcNow;
-                    var saveResult = await lang.SaveModelAsync(false, context, transaction);
-                    result.IsSucceed = result.IsSucceed && saveResult.IsSucceed;
-                    if (!result.IsSucceed)
-                    {
-                        result.Exception = saveResult.Exception;
-                        result.Errors = saveResult.Errors;
-                        break;
-                    }
-                }
-                UnitOfWorkHelper<MixCmsContext>.HandleTransaction(result.IsSucceed, isRoot, transaction);
-            }
-            catch (Exception ex) // TODO: Add more specific exeption types instead of Exception only
-            {
-                var error = UnitOfWorkHelper<MixCmsContext>.HandleException<ReadMvcViewModel>(ex, isRoot, transaction);
-                result.IsSucceed = false;
-                result.Errors = error.Errors;
-                result.Exception = error.Exception;
-            }
-            finally
-            {
-                if (isRoot)
-                {
-                    context?.Dispose();
-                }
-            }
-            return result;
-        }
-
-        #endregion
+        
+        #endregion Expands
     }
 }

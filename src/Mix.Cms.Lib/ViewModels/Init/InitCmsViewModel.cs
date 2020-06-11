@@ -5,15 +5,14 @@ namespace Mix.Cms.Lib.ViewModels.MixInit
     public class InitCmsViewModel
     {
         #region Properties
+
         [JsonProperty("connectionString")]
-        public string ConnectionString
-        {
+        public string ConnectionString {
             // If use local db  => return local db cnn string
-            // Else If use remote db 
+            // Else If use remote db
             // => return: if use mysql => return mysql cnn string
             //              else return remote mssql cnn string
-            get
-            {
+            get {
                 switch (DatabaseProvider)
                 {
                     case MixEnums.DatabaseProvider.MSSQL:
@@ -27,11 +26,11 @@ namespace Mix.Cms.Lib.ViewModels.MixInit
                     case MixEnums.DatabaseProvider.MySQL:
                         return $"Server={DatabaseServer};port={DatabasePort};Database={DatabaseName}" +
                       $";User={DatabaseUser};Password={DatabasePassword};";
-
+                    case MixEnums.DatabaseProvider.PostgreSQL:
+                        return $"Host={DatabaseServer};Port={DatabasePort};Database={DatabaseName};Username={DatabaseUser};Password={DatabasePassword}";
                     default:
                         return string.Empty;
                 }
-
             }
         }
 
@@ -64,7 +63,7 @@ namespace Mix.Cms.Lib.ViewModels.MixInit
         public string Lang { get; set; }
 
         [JsonProperty("isMysql")]
-        public bool IsMysql { get; set; }
+        public bool IsMysql { get { return DatabaseProvider == MixEnums.DatabaseProvider.MySQL; } }
 
         [JsonProperty("databaseProvider")]
         public MixEnums.DatabaseProvider DatabaseProvider { get; set; }
@@ -74,13 +73,11 @@ namespace Mix.Cms.Lib.ViewModels.MixInit
 
         [JsonProperty("siteName")]
         public string SiteName { get; set; } = "MixCore";
-        #endregion
+
+        #endregion Properties
 
         public InitCmsViewModel()
         {
-
         }
-
-
     }
 }

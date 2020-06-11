@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Common.Helper;
 using Mix.Domain.Core.ViewModels;
@@ -6,22 +7,35 @@ using Mix.Domain.Data.Repository;
 using Mix.Domain.Data.ViewModels;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
 using System.Threading.Tasks;
+using System.Linq;
+using System.Reflection;
 
 namespace Mix.Cms.Lib.ViewModels.MixPosts
 {
     public class Helper
     {
+        /// <summary>
+        /// Gets the modelist by meta.
+        /// </summary>
+        /// <typeparam name="TView">The type of the view.</typeparam>
+        /// <param name="culture">The culture.</param>
+        /// <param name="metaName">Name of the meta. Ex: sys_tag / sys_category</param>
+        /// <param name="metaValue">The meta value.</param>
+        /// <param name="orderByPropertyName">Name of the order by property.</param>
+        /// <param name="direction">The direction.</param>
+        /// <param name="pageSize">Size of the page.</param>
+        /// <param name="pageIndex">Index of the page.</param>
+        /// <param name="_context">The context.</param>
+        /// <param name="_transaction">The transaction.</param>
+        /// <returns></returns>
         public static async Task<RepositoryResponse<PaginationModel<TView>>> GetModelistByMeta<TView>(
-            string culture, string metaName, string metaValue
-            , string orderByPropertyName, int direction, int? pageSize, int? pageIndex
+            string metaName, string metaValue, string culture
+            , string orderByPropertyName, Heart.Enums.MixHeartEnums.DisplayDirection direction, int? pageSize, int? pageIndex
             , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
             where TView : ViewModelBase<MixCmsContext, MixPost, TView>
         {
-            
             UnitOfWorkHelper<MixCmsContext>.InitTransaction(_context, _transaction, out MixCmsContext context, out IDbContextTransaction transaction, out bool isRoot);
             try
             {
@@ -41,8 +55,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 if (getVal.IsSucceed)
                 {
                     var getRelatedData = await MixRelatedAttributeDatas.ReadViewModel.Repository.GetModelListByAsync(
-                        m => m.Specificulture == culture && m.Id == getVal.Data.DataId
-                        && m.ParentType == (int)MixEnums.MixAttributeSetDataType.Post
+                        m => m.Specificulture == culture && m.DataId == getVal.Data.DataId
+                        && m.ParentType == MixEnums.MixAttributeSetDataType.Post.ToString()
                         , orderByPropertyName, direction, pageIndex, pageSize
                         , _context: context, _transaction: transaction
                         );
@@ -53,19 +67,18 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                             if (int.TryParse(item.ParentId, out int postId))
                             {
                                 var getData = await DefaultRepository<MixCmsContext, MixPost, TView>.Instance.GetSingleModelAsync(
-                                m => m.Specificulture == item.Specificulture && m.Id == postId 
+                                m => m.Specificulture == item.Specificulture && m.Id == postId
                                     , context, transaction);
                                 if (getData.IsSucceed)
                                 {
                                     result.Data.Items.Add(getData.Data);
                                 }
                             }
-                            
                         }
                         result.Data.TotalItems = getRelatedData.Data.TotalItems;
                         result.Data.TotalPage = getRelatedData.Data.TotalPage;
                     }
-                    //var query = context.MixRelatedAttributeData.Where(m=> m.Specificulture == culture 
+                    //var query = context.MixRelatedAttributeData.Where(m=> m.Specificulture == culture
                     //    && m.Id == getVal.Data.DataId && m.ParentId == parentId && m.ParentType == (int) MixEnums.MixAttributeSetDataType.Post)
                     //    .Select(m => m.ParentId).Distinct().ToList();
                 }
@@ -82,9 +95,9 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 if (isRoot)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection(); transaction.Dispose(); context.Dispose();
                 }
             }
-        }
+        }        
     }
 }

@@ -5,6 +5,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Mix.Cms.Lib;
 using Mix.Cms.Lib.Models.Cms;
@@ -28,7 +29,7 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiModuleController :
          BaseGenericApiController<MixCmsContext, MixModule>
     {
-        public ApiModuleController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiModuleController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
         }
 
@@ -64,7 +65,7 @@ namespace Mix.Cms.Api.Controllers.v1
                         var model = new MixModule()
                         {
                             Specificulture = _lang,
-                            Status = MixService.GetConfig<int>("DefaultStatus"),
+                            Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus),
                             Priority = UpdateViewModel.Repository.Max(a => a.Priority).Data + 1
                         };
 
@@ -98,7 +99,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     }
             }
         }
-
 
         #endregion Get
 
@@ -137,7 +137,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         break;
                     }
-
                 }
                 return result;
             }
@@ -151,7 +150,7 @@ namespace Mix.Cms.Api.Controllers.v1
         {
             // Get module by name
             string _username = User?.Claims.FirstOrDefault(c => c.Type == "Username")?.Value;
-            var result = await ODataMobileViewModel.SaveByModuleName(_lang, _username, name, formName, obj);
+            var result = await UpdateViewModel.SaveByModuleName(_lang, _username, name, formName, obj);
             if (result.IsSucceed)
             {
                 return Ok(result);
@@ -173,31 +172,34 @@ namespace Mix.Cms.Api.Controllers.v1
             ParseRequestPagingDate(request);
             Expression<Func<MixModule, bool>> predicate = model =>
                         model.Specificulture == _lang
-                        && (!request.Status.HasValue || model.Status == request.Status.Value)
+                        && (string.IsNullOrEmpty(request.Status) || model.Status == request.Status)
                         && (!isType || model.Type == moduleType)
                         && (string.IsNullOrWhiteSpace(request.Keyword)
-                            || (model.Title.Contains(request.Keyword)
-                            || model.Description.Contains(request.Keyword)))
+                            || (EF.Functions.Like(model.Name, $"%{request.Keyword}%"))
+                            || (EF.Functions.Like(model.Title, $"%{request.Keyword}%"))
+                            || (EF.Functions.Like(model.Description, $"%{request.Keyword}%"))
+                            )
                         && (!request.FromDate.HasValue
                             || (model.CreatedDateTime >= request.FromDate.Value)
                         )
                         && (!request.ToDate.HasValue
                             || (model.CreatedDateTime <= request.ToDate.Value)
                         );
-            string key = $"{request.Query}_{request.PageSize}_{request.PageIndex}";
             switch (request.Key)
             {
                 case "mvc":
-                    var mvcResult = await base.GetListAsync<ReadMvcViewModel>(key, request, predicate);
+                    var mvcResult = await base.GetListAsync<ReadMvcViewModel>(request, predicate);
 
                     return Ok(JObject.FromObject(mvcResult));
+
                 case "portal":
-                    var portalResult = await base.GetListAsync<UpdateViewModel>(key, request, predicate);
+                    var portalResult = await base.GetListAsync<UpdateViewModel>(request, predicate);
 
                     return Ok(JObject.FromObject(portalResult));
+
                 default:
 
-                    var listItemResult = await base.GetListAsync<ReadListItemViewModel>(key, request, predicate);
+                    var listItemResult = await base.GetListAsync<ReadListItemViewModel>(request, predicate);
                     return JObject.FromObject(listItemResult);
             }
         }
@@ -228,12 +230,15 @@ namespace Mix.Cms.Api.Controllers.v1
             {
                 case "Delete":
                     return Ok(JObject.FromObject(await base.DeleteListAsync<UpdateViewModel>(predicate, true)));
+
                 case "Export":
                     return Ok(JObject.FromObject(await base.ExportListAsync(predicate, MixStructureType.Module)));
+
                 default:
                     return JObject.FromObject(new RepositoryResponse<bool>());
             }
         }
+
         #endregion Post
     }
 }

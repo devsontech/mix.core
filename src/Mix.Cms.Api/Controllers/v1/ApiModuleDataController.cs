@@ -5,6 +5,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using Mix.Cms.Lib;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
 using Mix.Cms.Lib.ViewModels.MixModuleDatas;
@@ -24,7 +25,7 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiModuleDataController :
         BaseGenericApiController<MixCmsContext, MixModuleData>
     {
-        public ApiModuleDataController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiModuleDataController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
         }
 
@@ -35,10 +36,8 @@ namespace Mix.Cms.Api.Controllers.v1
         [Route("details/{viewType}/{moduleId}")]
         public async Task<RepositoryResponse<UpdateViewModel>> DetailsAsync(string viewType, int moduleId, string id = null)
         {
-
             if (string.IsNullOrEmpty(id))
             {
-
                 var getModule = await Lib.ViewModels.MixModules.ReadListItemViewModel.Repository.GetSingleModelAsync(
         m => m.Id == moduleId && m.Specificulture == _lang).ConfigureAwait(false);
                 if (getModule.IsSucceed)
@@ -49,7 +48,7 @@ namespace Mix.Cms.Api.Controllers.v1
                         ModuleId = moduleId,
                         Specificulture = _lang,
                         Fields = getModule.Data.Fields,
-                        Status = MixService.GetConfig<int>("DefaultContentStatus")
+                        Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus)
                     };
                     RepositoryResponse<UpdateViewModel> result = await base.GetSingleAsync<UpdateViewModel>($"{viewType}_default", null, model);
 
@@ -260,21 +259,20 @@ namespace Mix.Cms.Api.Controllers.v1
                     || (model.CreatedDateTime <= request.ToDate.Value.ToUniversalTime())
                 );
 
-            var portalResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
-            foreach (var item in portalResult.Data.Items)
-            {
-                item.JItem["created_date"] = new JObject()
-                {
-                    new JProperty("dataType", 1),
-                    new JProperty("value", item.CreatedDateTime.ToLocalTime().ToString("dd-MM-yyyy hh:mm:ss"))
-                };
-                portalResult.Data.JsonItems.Add(item.JItem);
-            }
+            var portalResult = await base.GetListAsync<ReadViewModel>(request, predicate);
+            //foreach (var item in portalResult.Data.Items)
+            //{
+            //    item.JItem["created_date"] = new JObject()
+            //    {
+            //        new JProperty("dataType", 1),
+            //        new JProperty("value", item.CreatedDateTime.ToLocalTime().ToString("dd-MM-yyyy hh:mm:ss"))
+            //    };
+            //    portalResult.Data.JsonItems.Add(item.JItem);
+            //}
 
-            string exportPath = $"Exports/Module/{moduleId}";
-            var result = CommonHelper.ExportJObjectToExcel(portalResult.Data.JsonItems, string.Empty, exportPath, Guid.NewGuid().ToString(), null);
-            return Ok(JObject.FromObject(result));
-
+            //string exportPath = $"Exports/Module/{moduleId}";
+            //var result = CommonHelper.ExportJObjectToExcel(portalResult.Data.JsonItems, string.Empty, exportPath, Guid.NewGuid().ToString(), null);
+            return Ok(JObject.FromObject(portalResult));
         }
 
         // GET api/moduleData
@@ -289,7 +287,7 @@ namespace Mix.Cms.Api.Controllers.v1
             int.TryParse(query.Get("post_id"), out int postId);
             int.TryParse(query.Get("product_id"), out int productId);
             int.TryParse(query.Get("category_id"), out int pageId);
-            
+
             string key = $"{request.Key}_{request.PageSize}_{request.PageIndex}";
             Expression<Func<MixModuleData, bool>> predicate = model =>
                 model.Specificulture == _lang
@@ -304,7 +302,7 @@ namespace Mix.Cms.Api.Controllers.v1
                     || (model.CreatedDateTime <= request.ToDate.Value.ToUniversalTime())
                 )
                     ;
-            var portalResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
+            var portalResult = await base.GetListAsync<ReadViewModel>(request, predicate);
 
             return Ok(JObject.FromObject(portalResult));
         }

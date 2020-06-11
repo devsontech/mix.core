@@ -26,10 +26,10 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiPagePostController :
         BaseGenericApiController<MixCmsContext, MixPagePost>
     {
-        public ApiPagePostController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiPagePostController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
-
         }
+
         #region Get
 
         // GET api/page/id
@@ -49,7 +49,6 @@ namespace Mix.Cms.Api.Controllers.v1
             string msg = string.Empty;
             switch (viewType)
             {
-
                 default:
                     if (pageId.HasValue && postId.HasValue)
                     {
@@ -58,7 +57,7 @@ namespace Mix.Cms.Api.Controllers.v1
                         if (portalResult.IsSucceed)
                         {
                             portalResult.Data.Post.DetailsUrl = MixCmsHelper.GetRouterUrl(
-                                new { action = "post", culture = _lang,  portalResult.Data.Post.SeoName }, Request, Url);
+                                new { action = "post", culture = _lang, portalResult.Data.Post.SeoName }, Request, Url);
                         }
 
                         return Ok(JObject.FromObject(portalResult));
@@ -68,7 +67,7 @@ namespace Mix.Cms.Api.Controllers.v1
                         var model = new MixPagePost()
                         {
                             Specificulture = _lang,
-                            Status = MixService.GetConfig<int>("DefaultStatus"),
+                            Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus),
                             Priority = ReadViewModel.Repository.Max(a => a.Priority).Data + 1
                         };
 
@@ -77,7 +76,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     }
             }
         }
-
 
         #endregion Get
 
@@ -115,7 +113,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         break;
                     }
-
                 }
                 return result;
             }
@@ -136,16 +133,15 @@ namespace Mix.Cms.Api.Controllers.v1
                         model.Specificulture == _lang
                         && (!isPage || model.PageId == pageId)
                         && (!isPost || model.PostId == postId)
-                        && (!request.Status.HasValue || model.Status == request.Status.Value)
+                        && (string.IsNullOrEmpty(request.Status) || model.Status == request.Status)
                         && (string.IsNullOrWhiteSpace(request.Keyword)
                             || (model.Description.Contains(request.Keyword)
                             ))
                         ;
-            string key = $"{request.Key}_{request.Query}_{request.PageSize}_{request.PageIndex}";
             switch (request.Key)
             {
                 default:
-                    var listItemResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
+                    var listItemResult = await base.GetListAsync<ReadViewModel>(request, predicate);
                     listItemResult.Data.Items.ForEach(n => n.IsActived = true);
                     listItemResult.Data.Items.ForEach(n => n.Post.DetailsUrl = MixCmsHelper.GetRouterUrl(
                                 new { action = "post", culture = _lang, id = n.Post.Id, seoName = n.Post.SeoName }, Request, Url));
@@ -166,6 +162,7 @@ namespace Mix.Cms.Api.Controllers.v1
                 return new RepositoryResponse<List<ReadViewModel>>();
             }
         }
+
         // POST api/update-infos
         [HttpPost, HttpOptions]
         [Route("save-list")]
@@ -180,6 +177,7 @@ namespace Mix.Cms.Api.Controllers.v1
                 return new RepositoryResponse<List<ReadViewModel>>();
             }
         }
+
         #endregion Post
     }
 }

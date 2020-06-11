@@ -23,26 +23,42 @@ namespace Mix.Cms.Lib.ViewModels.Account
         public string Id { get; set; }
         [JsonProperty("username")]
         public string Username { get; set; }
+
         [JsonProperty("email")]
         public string Email { get; set; }
+
         [JsonProperty("firstName")]
         public string FirstName { get; set; }
+
         [JsonProperty("middleName")]
         public string MiddleName { get; set; }
+
         [JsonProperty("lastName")]
         public string LastName { get; set; }
+
         [JsonProperty("avatar")]
         public string Avatar { get; set; }
+
         [JsonProperty("address")]
         public string Address { get; set; }
+
         [JsonProperty("phoneNumber")]
         public string PhoneNumber { get; set; }
+
+        [JsonProperty("createdby")]
+        public string CreatedBy { get; set; }
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
-        [JsonProperty("createdBy")]
-        public string CreatedBy { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixUserStatus Status { get; set; }
 
-        #endregion
+        #endregion Models
 
         #region Views
 
@@ -58,15 +74,12 @@ namespace Mix.Cms.Lib.ViewModels.Account
         [JsonProperty("userRoles")]
         public List<NavUserRoleViewModel> UserRoles { get; set; }
 
-
         [JsonProperty("domain")]
         public string Domain => MixService.GetConfig<string>("Domain");
 
         [JsonProperty("avatarUrl")]
-        public string AvatarUrl
-        {
-            get
-            {
+        public string AvatarUrl {
+            get {
                 if (Avatar != null && (Avatar.IndexOf("http") == -1 && Avatar[0] != '/'))
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -79,11 +92,13 @@ namespace Mix.Cms.Lib.ViewModels.Account
                 }
             }
         }
+
         [JsonProperty("mediaFile")]
         public FileViewModel MediaFile { get; set; } = new FileViewModel();
-        #endregion
 
-        #endregion
+        #endregion Views
+
+        #endregion Properties
 
         #region Contructors
 
@@ -96,9 +111,10 @@ namespace Mix.Cms.Lib.ViewModels.Account
         {
         }
 
-        #endregion
+        #endregion Contructors
 
         #region Overrides
+
         public override MixCmsUser ParseModel(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             if (MediaFile.FileStream != null)
@@ -116,7 +132,6 @@ namespace Mix.Cms.Lib.ViewModels.Account
                 {
                     IsValid = false;
                 }
-
             }
             return base.ParseModel(_context, _transaction);
         }
@@ -126,7 +141,7 @@ namespace Mix.Cms.Lib.ViewModels.Account
             UserRoles = GetRoleNavs();
         }
 
-        #endregion
+        #endregion Overrides
 
         #region Expands
 
@@ -136,20 +151,19 @@ namespace Mix.Cms.Lib.ViewModels.Account
             {
                 var query = context.AspNetRoles
                   .Include(cp => cp.AspNetUserRoles)
+                  .ToList()
                   .Select(p => new NavUserRoleViewModel()
                   {
                       UserId = Id,
                       RoleId = p.Id,
-                      Specificulture = Specificulture,
                       Description = p.Name,
                       IsActived = context.AspNetUserRoles.Any(m => m.UserId == Id && m.RoleId == p.Id)
                   });
 
                 return query.OrderBy(m => m.Priority).ToList();
             }
-
         }
 
-        #endregion
+        #endregion Expands
     }
 }

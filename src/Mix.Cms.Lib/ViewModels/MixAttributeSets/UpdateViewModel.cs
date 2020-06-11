@@ -1,10 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
+using Mix.Cms.Lib.Helpers;
 using Mix.Cms.Lib.Models.Cms;
-using Mix.Cms.Lib.Services;
-using Mix.Common.Helper;
 using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,49 +16,73 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSets
       : ViewModelBase<MixCmsContext, MixAttributeSet, UpdateViewModel>
     {
         #region Properties
+
         #region Models
 
         [JsonProperty("id")]
         public int Id { get; set; }
+
         [JsonProperty("ReferenceId")]
         public int? ReferenceId { get; set; }
+
         [JsonProperty("type")]
-        public int? Type { get; set; }
+        public MixEnums.MixAttributeSetDataType? Type { get; set; }
+
         [JsonProperty("title")]
         public string Title { get; set; }
+
         [JsonProperty("name")]
         public string Name { get; set; }
+
         [JsonProperty("description")]
         public string Description { get; set; }
+
         [JsonProperty("formTemplate")]
         public string FormTemplate { get; set; }
 
         [JsonProperty("edmTemplate")]
         public string EdmTemplate { get; set; }
+
         [JsonProperty("edmSubject")]
         public string EdmSubject { get; set; }
+
         [JsonProperty("edmFrom")]
         public string EdmFrom { get; set; }
+
         [JsonProperty("edmAutoSend")]
         public bool? EdmAutoSend { get; set; }
+
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("status")]
-        public int Status { get; set; }
-
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
-        #region Views        
+
+        #region Views
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
         [JsonProperty("fields")]
         public List<MixAttributeFields.UpdateViewModel> Fields { get; set; }
+
         [JsonProperty("removeAttributes")]
         public List<MixAttributeFields.DeleteViewModel> RemoveAttributes { get; set; } = new List<MixAttributeFields.DeleteViewModel>();
 
         [JsonProperty("formView")]
         public MixTemplates.UpdateViewModel FormView { get; set; }
+
         [JsonProperty("edmView")]
         public MixTemplates.UpdateViewModel EdmView { get; set; }
 
-        #endregion
+        #endregion Views
+
         #endregion Properties
 
         #region Contructors
@@ -74,20 +98,22 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSets
         #endregion Contructors
 
         #region Overrides
+
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
-            if (Id>0)
+            if (Id > 0)
             {
                 Fields = MixAttributeFields.UpdateViewModel
                 .Repository.GetModelListBy(a => a.AttributeSetId == Id, _context, _transaction).Data?.OrderBy(a => a.Priority).ToList();
-                FormView = MixTemplates.UpdateViewModel.GetTemplateByPath(FormTemplate, Specificulture, _context, _transaction).Data;
-                EdmView = MixTemplates.UpdateViewModel.GetTemplateByPath(EdmTemplate, Specificulture, _context, _transaction).Data;
+                //FormView = MixTemplates.UpdateViewModel.GetTemplateByPath(FormTemplate, Specificulture, _context, _transaction).Data;
+                //EdmView = MixTemplates.UpdateViewModel.GetTemplateByPath(EdmTemplate, Specificulture, _context, _transaction).Data;
             }
             else
             {
                 Fields = new List<MixAttributeFields.UpdateViewModel>();
             }
         }
+
         public override MixAttributeSet ParseModel(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             if (Id == 0)
@@ -105,7 +131,7 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSets
             base.Validate(_context, _transaction);
             if (IsValid)
             {
-                if (_context.MixAttributeSet.Any(s=>s.Name== Name && s.Id != Id))
+                if (_context.MixAttributeSet.Any(s => s.Name == Name && s.Id != Id))
                 {
                     IsValid = false;
                     Errors.Add($"{Name} is Existed");
@@ -174,31 +200,33 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSets
             return result;
         }
 
-        public override List<Task> GenerateRelatedData(MixCmsContext context, IDbContextTransaction transaction)
-        {
-            var tasks = new List<Task>();
-            var attrDatas = context.MixAttributeSetData.Where(m => m.AttributeSetId == Id);
-            var attrFields = context.MixAttributeField.Where(m => m.AttributeSetId == Id);
+        //public override List<Task> GenerateRelatedData(MixCmsContext context, IDbContextTransaction transaction)
+        //{
+        //    var tasks = new List<Task>();
+        //    var attrDatas = context.MixAttributeSetData.Where(m => m.AttributeSetId == Id);
+        //    var attrFields = context.MixAttributeField.Where(m => m.AttributeSetId == Id);
 
-            foreach (var item in attrDatas)
-            {
-                tasks.Add(Task.Run(() =>
-                {
-                    MixAttributeSetDatas.UpdateViewModel.Repository.RemoveCache(item, context, transaction);
-                }));
-            }
-            foreach (var item in attrFields)
-            {
-                tasks.Add(Task.Run(() =>
-                {
-                    MixAttributeFields.UpdateViewModel.Repository.RemoveCache(item, context, transaction);
-                }));
-            }
-            return tasks;
-        }
-        #endregion
+        //    foreach (var item in attrDatas)
+        //    {
+        //        tasks.Add(Task.Run(() =>
+        //        {
+        //            MixAttributeSetDatas.UpdateViewModel.Repository.RemoveCache(item, context, transaction);
+        //        }));
+        //    }
+        //    foreach (var item in attrFields)
+        //    {
+        //        tasks.Add(Task.Run(() =>
+        //        {
+        //            MixAttributeFields.UpdateViewModel.Repository.RemoveCache(item, context, transaction);
+        //        }));
+        //    }
+        //    return tasks;
+        //}
 
-        #region Expand       
+        #endregion Overrides
+
+        #region Expand
+
         #endregion
     }
 }

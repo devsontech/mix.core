@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
+using Mix.Cms.Lib;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
@@ -13,27 +14,46 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
       : ViewModelBase<MixCmsContext, MixAttributeSetData, ReadDataViewModel>
     {
         #region Properties
+
         #region Models
+
         [JsonProperty("id")]
         public string Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
+
         [JsonProperty("attributeSetId")]
         public int AttributeSetId { get; set; }
+
         [JsonProperty("attributeSetName")]
         public string AttributeSetName { get; set; }
+
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
+
         [JsonProperty("createdBy")]
         public string CreatedBy { get; set; }
+
         [JsonProperty("status")]
         public int Status { get; set; }
+
         #endregion Models
+
         #region Views
+
         [JsonIgnore]
         [JsonProperty("values")]
-        public List<MixAttributeSetValues.ReadViewModel> Values { get; set; }
+        public List<Lib.ViewModels.MixAttributeSetValues.ReadViewModel> Values { get; set; }
+
         [JsonProperty("data")]
         public JObject Data { get; set; }
-        #endregion
+
+        #endregion Views
+
         #endregion Properties
 
         #region Contructors
@@ -52,7 +72,7 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
 
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
-            var getValues = MixAttributeSetValues.ReadViewModel
+            var getValues = Lib.ViewModels.MixAttributeSetValues.ReadViewModel
                 .Repository.GetModelListBy(a => a.DataId == Id && a.Specificulture == Specificulture, _context, _transaction);
             if (getValues.IsSucceed)
             {
@@ -61,26 +81,34 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
             }
         }
 
-        #endregion
-        JProperty ParseValue(MixAttributeSetValues.ReadViewModel item)
+        #endregion Overrides
+
+        private JProperty ParseValue(Lib.ViewModels.MixAttributeSetValues.ReadViewModel item)
         {
             switch (item.DataType)
             {
                 case MixEnums.MixDataType.DateTime:
                     return new JProperty(item.AttributeFieldName, item.DateTimeValue);
+
                 case MixEnums.MixDataType.Date:
                     return (new JProperty(item.AttributeFieldName, item.DateTimeValue));
+
                 case MixEnums.MixDataType.Time:
                     return (new JProperty(item.AttributeFieldName, item.DateTimeValue));
+
                 case MixEnums.MixDataType.Double:
                     return (new JProperty(item.AttributeFieldName, item.DoubleValue));
+
                 case MixEnums.MixDataType.Boolean:
                     return (new JProperty(item.AttributeFieldName, item.BooleanValue));
+
                 case MixEnums.MixDataType.Number:
                     return (new JProperty(item.AttributeFieldName, item.IntegerValue));
+
                 case MixEnums.MixDataType.Reference:
                     //string url = $"/api/v1/odata/en-us/related-attribute-set-data/mobile/parent/set/{Id}/{item.Field.ReferenceId}";
                     return (new JProperty(item.AttributeFieldName, new JArray()));
+
                 case MixEnums.MixDataType.Custom:
                 case MixEnums.MixDataType.Duration:
                 case MixEnums.MixDataType.PhoneNumber:
@@ -102,7 +130,8 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
                     return (new JProperty(item.AttributeFieldName, item.StringValue));
             }
         }
-        void ParseModelValue(JToken property, MixAttributeSetValues.ImportViewModel item)
+
+        private void ParseModelValue(JToken property, MixAttributeSetValues.ImportViewModel item)
         {
             switch (item.Field.DataType)
             {
@@ -110,29 +139,36 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
                     item.DateTimeValue = property.Value<DateTime?>();
                     item.StringValue = property.Value<string>();
                     break;
+
                 case MixEnums.MixDataType.Date:
                     item.DateTimeValue = property.Value<DateTime?>();
                     item.StringValue = property.Value<string>();
                     break;
+
                 case MixEnums.MixDataType.Time:
                     item.DateTimeValue = property.Value<DateTime?>();
                     item.StringValue = property.Value<string>();
                     break;
+
                 case MixEnums.MixDataType.Double:
                     item.DoubleValue = property.Value<double?>();
                     item.StringValue = property.Value<string>();
                     break;
+
                 case MixEnums.MixDataType.Boolean:
                     item.BooleanValue = property.Value<bool?>();
                     item.StringValue = property.Value<string>().ToLower();
                     break;
+
                 case MixEnums.MixDataType.Number:
                     item.IntegerValue = property.Value<int?>();
                     item.StringValue = property.Value<string>();
                     break;
+
                 case MixEnums.MixDataType.Reference:
                     item.StringValue = property.Value<string>();
                     break;
+
                 case MixEnums.MixDataType.Upload:
                     item.StringValue = property.Value<string>();
                     break;
@@ -159,7 +195,6 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
             }
         }
 
-
         private void ParseData()
         {
             Data = new JObject
@@ -173,6 +208,5 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
                 Data.Add(ParseValue(item));
             }
         }
-
     }
 }

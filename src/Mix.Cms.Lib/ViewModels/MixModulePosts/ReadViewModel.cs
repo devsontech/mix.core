@@ -21,7 +21,10 @@ namespace Mix.Cms.Lib.ViewModels.MixModulePosts
         public ReadViewModel() : base()
         {
         }
-
+        [JsonProperty("id")]
+        public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
         [JsonProperty("postId")]
         public int PostId { get; set; }
 
@@ -36,16 +39,39 @@ namespace Mix.Cms.Lib.ViewModels.MixModulePosts
 
         [JsonProperty("description")]
         public string Description { get; set; }
+
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("status")]
         public MixEnums.MixContentStatus Status { get; set; }
         #region Views
+
         [JsonProperty("post")]
         public MixPosts.ReadListItemViewModel Post { get; set; }
+
         [JsonProperty("module")]
         public MixModules.ReadListItemViewModel Module { get; set; }
+
         #endregion Views
 
         #region overrides
+        public override MixModulePost ParseModel(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
+        {
+            if (Id == 0)
+            {
+                Id = Repository.Max(c => c.Id, _context, _transaction).Data + 1;
+                CreatedDateTime = DateTime.UtcNow;
+            }
+            return base.ParseModel(_context, _transaction);
+        }
 
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
@@ -66,15 +92,9 @@ namespace Mix.Cms.Lib.ViewModels.MixModulePosts
             }
         }
 
-        #region Async
-
-        #endregion Async
-
         #endregion overrides
 
-
         #region Expand
-
 
         public static RepositoryResponse<List<MixModulePosts.ReadViewModel>> GetModulePostNavAsync(int postId, string specificulture
            , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
@@ -124,11 +144,11 @@ namespace Mix.Cms.Lib.ViewModels.MixModulePosts
                 {
                     //if current Context is Root
                     transaction.Dispose();
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
 
-        #endregion
+        #endregion Expand
     }
 }

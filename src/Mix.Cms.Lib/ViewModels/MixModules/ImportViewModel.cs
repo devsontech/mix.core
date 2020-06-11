@@ -3,7 +3,6 @@ using Mix.Cms.Lib.Models.Cms;
 using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -21,6 +20,10 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
 
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [Required]
         [JsonProperty("name")]
@@ -54,24 +57,21 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
         [JsonProperty("type")]
         public MixModuleType Type { get; set; }
 
-        [JsonProperty("status")]
-        public MixContentStatus Status { get; set; }
-
         [JsonProperty("pageSize")]
         public int? PageSize { get; set; }
 
-        [JsonProperty("lastModified")]
-        public DateTime LastModified { get; set; }
-
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
-
         [JsonProperty("createdBy")]
         public string CreatedBy { get; set; }
-
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
         [JsonProperty("modifiedBy")]
         public string ModifiedBy { get; set; }
-
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #region Views
@@ -86,8 +86,10 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
         //Parent Category Id
         [JsonProperty("pageId")]
         public int PageId { get; set; }
+
         [JsonProperty("isExportData")]
         public bool IsExportData { get; set; }
+
         #endregion Views
 
         #endregion Properties
@@ -105,6 +107,7 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
         #endregion Contructors
 
         #region Overrides
+
         public override void Validate(MixCmsContext _context, IDbContextTransaction _transaction)
         {
             base.Validate(_context, _transaction);
@@ -118,6 +121,7 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                 }
             }
         }
+
         public override MixModule ParseModel(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             if (Id == 0)
@@ -128,6 +132,7 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
             }
             return base.ParseModel(_context, _transaction);
         }
+
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             //var getDataResult = MixModuleDatas.ReadViewModel.Repository
@@ -141,6 +146,7 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
             //    Data = getDataResult.Data;
             //}
         }
+
         public override async Task<RepositoryResponse<bool>> SaveSubModelsAsync(MixModule parent, MixCmsContext _context, IDbContextTransaction _transaction)
         {
             var result = new RepositoryResponse<bool> { IsSucceed = true };
@@ -158,13 +164,13 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
             }
             return result;
         }
+
         #region Async
 
         public override Task<RepositoryResponse<MixModule>> RemoveModelAsync(bool isRemoveRelatedModels = false, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             return base.RemoveModelAsync(isRemoveRelatedModels, _context, _transaction);
         }
-
 
         #endregion Async
 
@@ -179,7 +185,6 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                        .GetModelListBy(m => m.ModuleId == Id && m.Specificulture == Specificulture
                        , "Priority", 0, null, null
                        , _context, _transaction);
-
         }
 
         #endregion Expand

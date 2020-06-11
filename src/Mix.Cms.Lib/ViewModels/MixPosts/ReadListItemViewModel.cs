@@ -21,6 +21,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [JsonProperty("template")]
         public string Template { get; set; }
@@ -30,6 +34,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("image")]
         public string Image { get; set; }
+
+        [JsonIgnore]
+        [JsonProperty("extraFields")]
+        public string ExtraFields { get; set; } = "[]";
 
         [JsonIgnore]
         [JsonProperty("extraProperties")]
@@ -66,37 +74,31 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public int? Views { get; set; }
 
         [JsonProperty("type")]
-        public int Type { get; set; }
-
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
+        public MixContentStatus Type { get; set; }
 
         [JsonProperty("publishedDateTime")]
         public DateTime? PublishedDateTime { get; set; }
 
-        [JsonProperty("createdBy")]
+        [JsonProperty("tags")]
+        public string Tags { get; set; } = "[]";
+
         public string CreatedBy { get; set; }
-
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
         [JsonProperty("modifiedBy")]
         public string ModifiedBy { get; set; }
-
-        [JsonProperty("tags")]
-        public string Tags { get; set; }
-
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("status")]
-        public MixContentStatus Status { get; set; }
-
-
-
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #region Views
+
         [JsonProperty("detailsUrl")]
         public string DetailsUrl { get; set; }
-
 
         [JsonProperty("view")]
         public ReadViewModel View { get; set; }
@@ -105,10 +107,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public string Domain { get { return MixService.GetConfig<string>("Domain"); } }
 
         [JsonProperty("imageUrl")]
-        public string ImageUrl
-        {
-            get
-            {
+        public string ImageUrl {
+            get {
                 if (!string.IsNullOrEmpty(Image) && (Image.IndexOf("http") == -1) && Image[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -123,10 +123,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         }
 
         [JsonProperty("thumbnailUrl")]
-        public string ThumbnailUrl
-        {
-            get
-            {
+        public string ThumbnailUrl {
+            get {
                 if (Thumbnail != null && Thumbnail.IndexOf("http") == -1 && Thumbnail[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -140,10 +138,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             }
         }
 
-        public string TemplatePath
-        {
-            get
-            {
+        public string TemplatePath {
+            get {
                 return CommonHelper.GetFullPath(new string[]
                 {
                     ""
@@ -194,12 +190,12 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         #endregion Overrides
 
         #region Expands
+
         //Get Property by name
         public string Property(string name)
         {
             var prop = Properties.FirstOrDefault(p => p.Name.ToLower() == name.ToLower());
             return prop?.Value;
-
         }
 
         #endregion Expands

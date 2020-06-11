@@ -5,6 +5,7 @@ using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
+using System;
 
 namespace Mix.Cms.Lib.ViewModels.MixPostMedias
 {
@@ -19,7 +20,12 @@ namespace Mix.Cms.Lib.ViewModels.MixPostMedias
         public ReadViewModel() : base()
         {
         }
-
+        #region Properties
+        #region Models
+        [JsonProperty("id")]
+        public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
         [JsonProperty("mediaId")]
         public int MediaId { get; set; }
 
@@ -35,14 +41,35 @@ namespace Mix.Cms.Lib.ViewModels.MixPostMedias
         [JsonProperty("description")]
         public string Description { get; set; }
 
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
+        #endregion
         #region Views
 
         public UpdateViewModel Media { get; set; }
 
         #endregion Views
+        #endregion
 
         #region overrides
-
+        public override MixPostMedia ParseModel(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
+        {
+            if (Id == 0)
+            {
+                Id = Repository.Max(m => m.Id, _context, _transaction).Data + 1;
+            }
+            return base.ParseModel(_context, _transaction);
+        }
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var getMedia = UpdateViewModel.Repository.GetSingleModel(p => p.Id == MediaId && p.Specificulture == Specificulture
@@ -53,6 +80,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPostMedias
                 Media = getMedia.Data;
             }
         }
+
         public override RepositoryResponse<bool> SaveSubModels(MixPostMedia parent, MixCmsContext _context, IDbContextTransaction _transaction)
         {
             var result = new RepositoryResponse<bool>() { IsSucceed = true };
@@ -65,6 +93,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPostMedias
             }
             return result;
         }
+
         #region Async
 
         public override async Task<RepositoryResponse<bool>> SaveSubModelsAsync(MixPostMedia parent, MixCmsContext _context, IDbContextTransaction _transaction)
@@ -79,6 +108,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPostMedias
             }
             return result;
         }
+
         #endregion Async
 
         #endregion overrides

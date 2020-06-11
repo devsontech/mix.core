@@ -1,10 +1,12 @@
 ﻿// Licensed to the Mixcore Foundation under one or more agreements.
-// The Mixcore Foundation licenses this file to you under the GNU General Public License v3.0.
+// The Mixcore Foundation licenses this file to you under the MIT.
 // See the LICENSE file in the project root for more information.
 
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Mix.Cms.Lib.Services;
 using Mix.Identity.Data;
+using MySql.Data.MySqlClient;
 
 namespace Mix.Cms.Lib.Models.Account
 {
@@ -19,6 +21,7 @@ namespace Mix.Cms.Lib.Models.Account
         public virtual DbSet<AspNetUserTokens> AspNetUserTokens { get; set; }
         public virtual DbSet<Clients> Clients { get; set; }
         public virtual DbSet<RefreshTokens> RefreshTokens { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ApplicationDbContext" /> class.
         /// </summary>
@@ -37,25 +40,58 @@ namespace Mix.Cms.Lib.Models.Account
             string cnn = MixService.GetConnectionString(MixConstants.CONST_CMS_CONNECTION);
             if (!string.IsNullOrEmpty(cnn))
             {
-                if (MixService.GetConfig<int>(MixConstants.CONST_SETTING_DATABASE_PROVIDER) == (int)MixEnums.DatabaseProvider.MySQL)
+                var provider = System.Enum.Parse<MixEnums.DatabaseProvider>(MixService.GetConfig<string>(MixConstants.CONST_SETTING_DATABASE_PROVIDER));
+                switch (provider)
                 {
-                    optionsBuilder.UseMySql(cnn);
-                }
-                else
-                {
-                    optionsBuilder.UseSqlServer(cnn);
-                }
+                    case MixEnums.DatabaseProvider.MSSQL:
+                        optionsBuilder.UseSqlServer(cnn);
+                        break;
+                    case MixEnums.DatabaseProvider.MySQL:
+                        optionsBuilder.UseMySql(cnn);
+                        break;
+                    case MixEnums.DatabaseProvider.PostgreSQL:
+                        optionsBuilder.UseNpgsql(cnn);
+                        break;
+                    default:
+                        break;
+                }               
             }
         }
+        //Ref https://github.com/dotnet/efcore/issues/10169
+        public override void Dispose()
+        {
 
+            var provider = System.Enum.Parse<MixEnums.DatabaseProvider>(MixService.GetConfig<string>(MixConstants.CONST_SETTING_DATABASE_PROVIDER));
+            switch (provider)
+            {
+                case MixEnums.DatabaseProvider.MSSQL:
+                    SqlConnection.ClearPool((SqlConnection)Database.GetDbConnection());
+                    break;
+                case MixEnums.DatabaseProvider.MySQL:
+                    MySqlConnection.ClearPool((MySqlConnection)Database.GetDbConnection());
+                    break;
+                case MixEnums.DatabaseProvider.PostgreSQL:
+                    Npgsql.NpgsqlConnection.ClearPool((Npgsql.NpgsqlConnection)Database.GetDbConnection());
+                    break;
 
+            }
+            base.Dispose();
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AspNetRoleClaims>(entity =>
             {
                 entity.HasIndex(e => e.RoleId);
 
-                entity.Property(e => e.RoleId).IsRequired();
+                entity.Property(e => e.Id).ValueGeneratedNever();
+
+                entity.Property(e => e.ClaimType).HasMaxLength(400);
+
+                entity.Property(e => e.ClaimValue).HasMaxLength(400);
+
+                entity.Property(e => e.RoleId)
+                    .IsRequired()
+                    .HasMaxLength(50);
 
                 entity.HasOne(d => d.Role)
                     .WithMany(p => p.AspNetRoleClaims)
@@ -69,11 +105,13 @@ namespace Mix.Cms.Lib.Models.Account
                     .IsUnique()
                     .HasFilter("([NormalizedName] IS NOT NULL)");
 
-                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.Id).HasMaxLength(50);
 
-                entity.Property(e => e.Name).HasMaxLength(256);
+                entity.Property(e => e.ConcurrencyStamp).HasMaxLength(400);
 
-                entity.Property(e => e.NormalizedName).HasMaxLength(256);
+                entity.Property(e => e.Name).HasMaxLength(250);
+
+                entity.Property(e => e.NormalizedName).HasMaxLength(250);
             });
 
             modelBuilder.Entity<AspNetUserClaims>(entity =>
@@ -82,7 +120,17 @@ namespace Mix.Cms.Lib.Models.Account
 
                 entity.HasIndex(e => e.UserId);
 
-                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.Id).ValueGeneratedNever();
+
+                entity.Property(e => e.ApplicationUserId).HasMaxLength(50);
+
+                entity.Property(e => e.ClaimType).HasMaxLength(400);
+
+                entity.Property(e => e.ClaimValue).HasMaxLength(400);
+
+                entity.Property(e => e.UserId)
+                    .IsRequired()
+                    .HasMaxLength(50);
 
                 entity.HasOne(d => d.ApplicationUser)
                     .WithMany(p => p.AspNetUserClaimsApplicationUser)
@@ -95,13 +143,24 @@ namespace Mix.Cms.Lib.Models.Account
 
             modelBuilder.Entity<AspNetUserLogins>(entity =>
             {
-                entity.HasKey(e => new { e.LoginProvider, e.ProviderKey });
+                entity.HasKey(e => new { e.LoginProvider, e.ProviderKey })
+                    .HasName("PK_AspNetUserLogins_1");
 
                 entity.HasIndex(e => e.ApplicationUserId);
 
                 entity.HasIndex(e => e.UserId);
 
-                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.LoginProvider).HasMaxLength(50);
+
+                entity.Property(e => e.ProviderKey).HasMaxLength(50);
+
+                entity.Property(e => e.ApplicationUserId).HasMaxLength(50);
+
+                entity.Property(e => e.ProviderDisplayName).HasMaxLength(400);
+
+                entity.Property(e => e.UserId)
+                    .IsRequired()
+                    .HasMaxLength(50);
 
                 entity.HasOne(d => d.ApplicationUser)
                     .WithMany(p => p.AspNetUserLoginsApplicationUser)
@@ -120,6 +179,12 @@ namespace Mix.Cms.Lib.Models.Account
 
                 entity.HasIndex(e => e.RoleId);
 
+                entity.Property(e => e.UserId).HasMaxLength(50);
+
+                entity.Property(e => e.RoleId).HasMaxLength(50);
+
+                entity.Property(e => e.ApplicationUserId).HasMaxLength(50);
+
                 entity.HasOne(d => d.ApplicationUser)
                     .WithMany(p => p.AspNetUserRolesApplicationUser)
                     .HasForeignKey(d => d.ApplicationUserId);
@@ -133,6 +198,23 @@ namespace Mix.Cms.Lib.Models.Account
                     .HasForeignKey(d => d.UserId);
             });
 
+            modelBuilder.Entity<AspNetUserTokens>(entity =>
+            {
+                entity.HasKey(e => new { e.UserId, e.LoginProvider, e.Name });
+
+                entity.Property(e => e.UserId).HasMaxLength(50);
+
+                entity.Property(e => e.LoginProvider).HasMaxLength(50);
+
+                entity.Property(e => e.Name).HasMaxLength(50);
+
+                entity.Property(e => e.Value).HasMaxLength(400);
+
+                entity.HasOne(d => d.User)
+                    .WithMany(p => p.AspNetUserTokens)
+                    .HasForeignKey(d => d.UserId);
+            });
+
             modelBuilder.Entity<AspNetUsers>(entity =>
             {
                 entity.HasIndex(e => e.NormalizedEmail)
@@ -143,31 +225,54 @@ namespace Mix.Cms.Lib.Models.Account
                     .IsUnique()
                     .HasFilter("([NormalizedUserName] IS NOT NULL)");
 
-                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.Id).HasMaxLength(50);
 
-                entity.Property(e => e.Dob).HasColumnName("DOB");
+                entity.Property(e => e.Avatar).HasMaxLength(250);
 
-                entity.Property(e => e.Email).HasMaxLength(256);
+                entity.Property(e => e.ConcurrencyStamp).HasMaxLength(250);
 
-                entity.Property(e => e.NormalizedEmail).HasMaxLength(256);
+                entity.Property(e => e.Culture).HasMaxLength(50);
 
-                entity.Property(e => e.NormalizedUserName).HasMaxLength(256);
+                entity.Property(e => e.Dob)
+                    .HasColumnName("DOB")
+                    .HasColumnType("datetime");
 
-                entity.Property(e => e.UserName).HasMaxLength(256);
-            });
+                entity.Property(e => e.Email).HasMaxLength(250);
 
-            modelBuilder.Entity<AspNetUserTokens>(entity =>
-            {
-                entity.HasKey(e => new { e.UserId, e.LoginProvider, e.Name });
+                entity.Property(e => e.FirstName).HasMaxLength(50);
 
-                entity.HasOne(d => d.User)
-                    .WithMany(p => p.AspNetUserTokens)
-                    .HasForeignKey(d => d.UserId);
+                entity.Property(e => e.Gender).HasMaxLength(50);
+
+                entity.Property(e => e.JoinDate).HasColumnType("datetime");
+
+                entity.Property(e => e.LastModified).HasColumnType("datetime");
+
+                entity.Property(e => e.LastName).HasMaxLength(50);
+
+                entity.Property(e => e.LockoutEnd).HasColumnType("datetime");
+
+                entity.Property(e => e.ModifiedBy).HasMaxLength(250);
+
+                entity.Property(e => e.NickName).HasMaxLength(50);
+
+                entity.Property(e => e.NormalizedEmail).HasMaxLength(250);
+
+                entity.Property(e => e.NormalizedUserName).HasMaxLength(250);
+
+                entity.Property(e => e.PasswordHash).HasMaxLength(250);
+
+                entity.Property(e => e.PhoneNumber).HasMaxLength(50);
+
+                entity.Property(e => e.RegisterType).HasMaxLength(50);
+
+                entity.Property(e => e.SecurityStamp).HasMaxLength(50);
+
+                entity.Property(e => e.UserName).HasMaxLength(250);
             });
 
             modelBuilder.Entity<Clients>(entity =>
             {
-                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.Id).HasMaxLength(50);
 
                 entity.Property(e => e.AllowedOrigin).HasMaxLength(100);
 
@@ -175,17 +280,30 @@ namespace Mix.Cms.Lib.Models.Account
                     .IsRequired()
                     .HasMaxLength(100);
 
-                entity.Property(e => e.Secret).IsRequired();
+                entity.Property(e => e.Secret)
+                    .IsRequired()
+                    .HasMaxLength(50);
             });
 
             modelBuilder.Entity<RefreshTokens>(entity =>
             {
-                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.Id).HasMaxLength(50);
 
-                entity.Property(e => e.Email).IsRequired();
+                entity.Property(e => e.ClientId).HasMaxLength(50);
 
-                entity.Property(e => e.Username);
+                entity.Property(e => e.Email)
+                    .IsRequired()
+                    .HasMaxLength(250);
+
+                entity.Property(e => e.ExpiresUtc).HasColumnType("datetime");
+
+                entity.Property(e => e.IssuedUtc).HasColumnType("datetime");
+
+                entity.Property(e => e.Username).HasMaxLength(250);
             });
+
+            OnModelCreatingPartial(modelBuilder);
         }
+        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
     }
 }

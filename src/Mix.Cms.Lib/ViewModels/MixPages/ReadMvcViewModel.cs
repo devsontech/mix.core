@@ -1,7 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
-using Mix.Cms.Lib.ViewModels.MixRelatedAttributeDatas;
 using Mix.Common.Helper;
 using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
@@ -24,24 +24,19 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
 
         [JsonProperty("id")]
         public int Id { get; set; }
-
-        [JsonProperty("name")]
-        public string Name { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [JsonProperty("template")]
         public string Template { get; set; }
 
-        [JsonProperty("title")]
-        public string Title { get; set; }
+        [JsonProperty("thumbnail")]
+        public string Thumbnail { get; set; }
 
-        [JsonProperty("fields")]
-        public string Fields { get; set; }
-
-        [JsonProperty("type")]
-        public MixEnums.MixPageType Type { get; set; }
-
-        [JsonProperty("status")]
-        public MixEnums.MixContentStatus Status { get; set; }
+        [JsonProperty("image")]
+        public string Image { get; set; }
 
         [JsonProperty("icon")]
         public string Icon { get; set; }
@@ -52,23 +47,14 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
         [JsonProperty("layout")]
         public string Layout { get; set; }
 
-        [JsonProperty("staticUrl")]
-        public string StaticUrl { get; set; }
+        [JsonProperty("title")]
+        public string Title { get; set; }
 
         [JsonProperty("excerpt")]
         public string Excerpt { get; set; }
 
-        [JsonProperty("image")]
-        public string Image { get; set; }
-
-        [JsonProperty("thumbnail")]
-        public string Thumbnail { get; set; }
-
         [JsonProperty("content")]
         public string Content { get; set; }
-
-        [JsonProperty("views")]
-        public int? Views { get; set; }
 
         [JsonProperty("seoName")]
         public string SeoName { get; set; }
@@ -82,26 +68,38 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
         [JsonProperty("seoKeywords")]
         public string SeoKeywords { get; set; }
 
-        [JsonProperty("level")]
-        public int? Level { get; set; }
+        [JsonProperty("source")]
+        public string Source { get; set; }
 
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("views")]
+        public int? Views { get; set; }
 
-        [JsonProperty("updatedDateTime")]
-        public DateTime? UpdatedDateTime { get; set; }
-
-        [JsonProperty("createdBy")]
-        public string CreatedBy { get; set; }
-
-        [JsonProperty("updatedBy")]
-        public string UpdatedBy { get; set; }
-
+        [JsonProperty("type")]
+        public MixPageType Type { get; set; }
         [JsonProperty("tags")]
         public string Tags { get; set; }
 
+        [JsonProperty("staticUrl")]
+        public string StaticUrl { get; set; }
+
+        [JsonProperty("level")]
+        public int? Level { get; set; }
+
         [JsonProperty("pageSize")]
         public int? PageSize { get; set; }
+
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #region Views
@@ -113,10 +111,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
         public string Domain { get { return MixService.GetConfig<string>("Domain"); } }
 
         [JsonProperty("imageUrl")]
-        public string ImageUrl
-        {
-            get
-            {
+        public string ImageUrl {
+            get {
                 if (!string.IsNullOrEmpty(Image) && (Image.IndexOf("http") == -1) && Image[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -129,11 +125,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                 }
             }
         }
+
         [JsonProperty("thumbnailUrl")]
-        public string ThumbnailUrl
-        {
-            get
-            {
+        public string ThumbnailUrl {
+            get {
                 if (Thumbnail != null && Thumbnail.IndexOf("http") == -1 && Thumbnail[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -146,6 +141,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                 }
             }
         }
+
         [JsonProperty("view")]
         public MixTemplates.ReadListItemViewModel View { get; set; }
 
@@ -155,13 +151,12 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
         [JsonProperty("modules")]
         public List<MixPageModules.ReadMvcViewModel> Modules { get; set; } = new List<MixPageModules.ReadMvcViewModel>(); // Get All Module
 
-        public string TemplatePath
-        {
-            get
-            {
+        public string TemplatePath {
+            get {
                 return $"/{MixConstants.Folder.TemplatesFolder}/{MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.ThemeFolder, Specificulture)}/{Template}";
             }
         }
+
         [JsonProperty("attributeData")]
         public MixRelatedAttributeDatas.ReadMvcViewModel AttributeData { get; set; }
 
@@ -188,7 +183,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
             this.View = MixTemplates.ReadListItemViewModel.GetTemplateByPath(Template, Specificulture, _context, _transaction).Data;
             if (View != null)
             {
-                GetSubModules(_context, _transaction);                
+                GetSubModules(_context, _transaction);
             }
 
             LoadAttributes(_context, _transaction);
@@ -199,6 +194,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
         #region Expands
 
         #region Sync
+
         public void LoadData(int? pageSize = null, int? pageIndex = null
             , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
@@ -218,6 +214,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                     case MixPageType.ListPost:
                         postExp = n => n.PageId == Id && n.Specificulture == Specificulture;
                         break;
+
                     default:
                         dataExp = m => m.PageId == Id && m.Specificulture == Specificulture;
                         postExp = n => n.PageId == Id && n.Specificulture == Specificulture;
@@ -246,7 +243,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                 if (isRoot)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
@@ -291,7 +288,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                         }
                     }
                 }
-
             }
             catch (Exception ex)
             {
@@ -302,10 +298,11 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                 if (isRoot)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
+
         public void LoadDataByKeyword(string keyword
            , string orderBy, int orderDirection
            , int? pageSize = null, int? pageIndex = null
@@ -345,7 +342,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                         }
                     }
                 }
-
             }
             catch (Exception ex)
             {
@@ -356,7 +352,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                 if (isRoot)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
@@ -396,26 +392,29 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
         }
 
         #endregion Sync
+
         private void LoadAttributes(MixCmsContext _context, IDbContextTransaction _transaction)
         {
             var getAttrs = MixAttributeSets.UpdateViewModel.Repository.GetSingleModel(m => m.Name == MixConstants.AttributeSetName.ADDITIONAL_FIELD_PAGE, _context, _transaction);
             if (getAttrs.IsSucceed)
             {
                 AttributeData = MixRelatedAttributeDatas.ReadMvcViewModel.Repository.GetFirstModel(
-                a => a.ParentId == Id.ToString() && a.Specificulture == Specificulture && a.AttributeSetId==getAttrs.Data.Id
+                a => a.ParentId == Id.ToString() && a.Specificulture == Specificulture && a.AttributeSetId == getAttrs.Data.Id
                     , _context, _transaction).Data;
             }
         }
+
         public MixModules.ReadMvcViewModel GetModule(string name)
         {
             return Modules.FirstOrDefault(m => m.Module.Name == name)?.Module;
         }
+
         public T Property<T>(string fieldName)
         {
-            if (AttributeData!=null)
+            if (AttributeData != null)
             {
                 var field = AttributeData.Data.Data.GetValue(fieldName);
-                if (field!=null)
+                if (field != null)
                 {
                     return field.Value<T>();
                 }
@@ -428,8 +427,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
             {
                 return default(T);
             }
-            
         }
+
         #endregion Expands
     }
 }

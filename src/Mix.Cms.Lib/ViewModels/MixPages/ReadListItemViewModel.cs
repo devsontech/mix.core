@@ -20,6 +20,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
 
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [JsonProperty("template")]
         public string Template { get; set; }
@@ -68,19 +72,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
 
         [JsonProperty("type")]
         public MixPageType Type { get; set; }
-
-        [JsonProperty("status")]
-        public MixEnums.PageStatus Status { get; set; }
-
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
-
-        [JsonProperty("updatedDateTime")]
-        public DateTime? UpdatedDateTime { get; set; }
-
-        [JsonProperty("createdBy")]
-        public string CreatedBy { get; set; }
-
         [JsonProperty("tags")]
         public string Tags { get; set; }
 
@@ -90,26 +81,31 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
         [JsonProperty("level")]
         public int? Level { get; set; }
 
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
-        [JsonProperty("modifiedBy")]
-        public string ModifiedBy { get; set; }
-
         [JsonProperty("pageSize")]
         public int? PageSize { get; set; }
-        #endregion Models
 
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
+        #endregion Models
 
         #region Views
 
         [JsonProperty("domain")]
         public string Domain { get { return MixService.GetConfig<string>("Domain"); } }
+
         [JsonProperty("imageUrl")]
-        public string ImageUrl
-        {
-            get
-            {
+        public string ImageUrl {
+            get {
                 if (!string.IsNullOrEmpty(Image) && (Image.IndexOf("http") == -1) && Image[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -122,11 +118,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                 }
             }
         }
+
         [JsonProperty("thumbnailUrl")]
-        public string ThumbnailUrl
-        {
-            get
-            {
+        public string ThumbnailUrl {
+            get {
                 if (Thumbnail != null && Thumbnail.IndexOf("http") == -1 && Thumbnail[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -139,8 +134,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                 }
             }
         }
-        [JsonProperty("childs")]
-        public List<MixPagePages.ReadViewModel> Childs { get; set; }
 
         [JsonProperty("totalPost")]
         public int TotalPost { get; set; }
@@ -174,12 +167,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
 
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
-            var getChilds = MixPagePages.ReadViewModel.Repository.GetModelListBy(
-                p => p.ParentId == Id && p.Specificulture == Specificulture, _context, _transaction);
-            if (getChilds.IsSucceed)
-            {
-                Childs = getChilds.Data.OrderBy(p => p.Priority).ToList();
-            }
             var countPost = MixPagePosts.ReadViewModel.Repository.Count(c => c.PageId == Id && c.Specificulture == Specificulture
                 , _context: _context, _transaction: _transaction);
 
@@ -187,11 +174,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
             {
                 TotalPost = countPost.Data;
             }
-
         }
 
         #endregion Overrides
-
-
     }
 }

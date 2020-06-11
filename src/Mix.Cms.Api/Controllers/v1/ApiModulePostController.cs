@@ -26,10 +26,10 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiModulePostController :
         BaseGenericApiController<MixCmsContext, MixModulePost>
     {
-        public ApiModulePostController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiModulePostController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
-
         }
+
         #region Get
 
         // GET api/module/id
@@ -49,7 +49,6 @@ namespace Mix.Cms.Api.Controllers.v1
             string msg = string.Empty;
             switch (viewType)
             {
-
                 default:
                     if (moduleId.HasValue && postId.HasValue)
                     {
@@ -68,7 +67,7 @@ namespace Mix.Cms.Api.Controllers.v1
                         var model = new MixModulePost()
                         {
                             Specificulture = _lang,
-                            Status = MixService.GetConfig<int>("DefaultStatus"),
+                            Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus),
                             Priority = ReadViewModel.Repository.Max(a => a.Priority).Data + 1
                         };
 
@@ -77,7 +76,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     }
             }
         }
-
 
         #endregion Get
 
@@ -115,7 +113,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         break;
                     }
-
                 }
                 return result;
             }
@@ -136,7 +133,7 @@ namespace Mix.Cms.Api.Controllers.v1
                         model.Specificulture == _lang
                         && (!isModule || model.ModuleId == moduleId)
                         && (!isPost || model.PostId == postId)
-                        && (!request.Status.HasValue || model.Status == request.Status.Value)
+                        && (string.IsNullOrEmpty(request.Status) || model.Status == request.Status)
                         && (string.IsNullOrWhiteSpace(request.Keyword)
                             || (model.Description.Contains(request.Keyword)
                             ))
@@ -146,7 +143,7 @@ namespace Mix.Cms.Api.Controllers.v1
             {
                 default:
 
-                    var listItemResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
+                    var listItemResult = await base.GetListAsync<ReadViewModel>(request, predicate);
                     listItemResult.Data.Items.ForEach(n => n.Post.DetailsUrl = MixCmsHelper.GetRouterUrl(
                                 new { action = "post", culture = _lang, id = n.Post.Id, seoName = n.Post.SeoName }, Request, Url));
                     return JObject.FromObject(listItemResult);
@@ -167,6 +164,7 @@ namespace Mix.Cms.Api.Controllers.v1
                 return new RepositoryResponse<List<ReadViewModel>>();
             }
         }
+
         // POST api/update-infos
         [HttpPost, HttpOptions]
         [Route("save-list")]
@@ -181,6 +179,7 @@ namespace Mix.Cms.Api.Controllers.v1
                 return new RepositoryResponse<List<ReadViewModel>>();
             }
         }
+
         #endregion Post
     }
 }

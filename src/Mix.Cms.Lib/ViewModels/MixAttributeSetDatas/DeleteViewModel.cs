@@ -3,7 +3,6 @@ using Mix.Cms.Lib.Models.Cms;
 using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
-using System.Linq;
 
 namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
 {
@@ -11,11 +10,15 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
       : ViewModelBase<MixCmsContext, MixAttributeSetData, DeleteViewModel>
     {
         #region Properties
+
         #region Models
 
         [JsonProperty("id")]
         public string Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }        
         #endregion Models
+
         #endregion Properties
 
         #region Contructors
@@ -31,6 +34,7 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
         #endregion Contructors
 
         #region Overrides
+
         public override RepositoryResponse<bool> RemoveRelatedModels(DeleteViewModel view, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var result = new RepositoryResponse<bool>() { IsSucceed = true };
@@ -41,7 +45,7 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
             // remove related navs
             if (result.IsSucceed)
             {
-                var removeRelated = MixRelatedAttributeDatas.DeleteViewModel.Repository.RemoveListModel(true, d => (d.Id == Id || d.ParentId == Id) && d.Specificulture == Specificulture);
+                var removeRelated = MixRelatedAttributeDatas.DeleteViewModel.Repository.RemoveListModel(true, d => (d.DataId == Id || d.ParentId == Id) && d.Specificulture == Specificulture);
                 ViewModelHelper.HandleResult(removeRelated, ref result);
             }
 
@@ -54,6 +58,7 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
             }
             return result;
         }
+
         public override async System.Threading.Tasks.Task<RepositoryResponse<bool>> RemoveRelatedModelsAsync(DeleteViewModel view, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var result = new RepositoryResponse<bool>() { IsSucceed = true };
@@ -65,7 +70,7 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
             if (result.IsSucceed)
             {
                 var removeRelated = await MixRelatedAttributeDatas.DeleteViewModel.Repository.RemoveListModelAsync
-                    (true, d => (d.Id == Id || d.ParentId == Id) && d.Specificulture == Specificulture
+                    (true, d => (d.DataId == Id || d.ParentId == Id) && d.Specificulture == Specificulture
                     , _context, _transaction);
                 ViewModelHelper.HandleResult(removeRelated, ref result);
             }
@@ -81,7 +86,7 @@ namespace Mix.Cms.Lib.ViewModels.MixAttributeSetDatas
             }
             return result;
         }
-        #endregion
 
+        #endregion Overrides
     }
 }

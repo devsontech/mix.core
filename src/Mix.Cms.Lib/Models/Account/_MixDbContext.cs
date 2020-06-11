@@ -3,10 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Mix.Cms.Lib.Services;
 using Mix.Identity.Entities;
 using Mix.Identity.Models;
+using MySql.Data.MySqlClient;
 
 namespace Mix.Cms.Lib.Models.Account
 {
@@ -42,21 +44,47 @@ namespace Mix.Cms.Lib.Models.Account
             // For example, you can rename the ASP.NET Identity table names and more.
             // Add your customizations after calling base.OnModelCreating(builder);
         }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-
             string cnn = MixService.GetConnectionString(MixConstants.CONST_CMS_CONNECTION);
             if (!string.IsNullOrEmpty(cnn))
             {
-                if (MixService.GetConfig<int>(MixConstants.CONST_SETTING_DATABASE_PROVIDER) == (int)MixEnums.DatabaseProvider.MySQL)
+                var provider = System.Enum.Parse<MixEnums.DatabaseProvider>(MixService.GetConfig<string>(MixConstants.CONST_SETTING_DATABASE_PROVIDER));
+                switch (provider)
                 {
-                    optionsBuilder.UseMySql(cnn);
-                }
-                else
-                {
-                    optionsBuilder.UseSqlServer(cnn);
+                    case MixEnums.DatabaseProvider.MSSQL:
+                        optionsBuilder.UseSqlServer(cnn);
+                        break;
+                    case MixEnums.DatabaseProvider.MySQL:
+                        optionsBuilder.UseMySql(cnn);
+                        break;
+                    case MixEnums.DatabaseProvider.PostgreSQL:
+                        optionsBuilder.UseNpgsql(cnn);
+                        break;
+                    default:
+                        break;
                 }
             }
+        }
+        //Ref https://github.com/dotnet/efcore/issues/10169
+        public override void Dispose()
+        {
+            var provider = System.Enum.Parse<MixEnums.DatabaseProvider>(MixService.GetConfig<string>(MixConstants.CONST_SETTING_DATABASE_PROVIDER));
+            switch (provider)
+            {
+                case MixEnums.DatabaseProvider.MSSQL:
+                    SqlConnection.ClearPool((SqlConnection)Database.GetDbConnection());
+                    break;
+                case MixEnums.DatabaseProvider.MySQL:
+                    MySqlConnection.ClearPool((MySqlConnection)Database.GetDbConnection());
+                    break;
+                case MixEnums.DatabaseProvider.PostgreSQL:
+                    Npgsql.NpgsqlConnection.ClearPool((Npgsql.NpgsqlConnection)Database.GetDbConnection());
+                    break;
+
+            }
+            base.Dispose();
         }
     }
 }

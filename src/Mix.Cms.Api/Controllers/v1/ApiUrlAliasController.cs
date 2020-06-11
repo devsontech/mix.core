@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using Mix.Cms.Lib;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
 using Mix.Cms.Lib.ViewModels.MixUrlAliases;
@@ -22,10 +23,10 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiUrlAliasController :
         BaseGenericApiController<MixCmsContext, MixUrlAlias>
     {
-        public ApiUrlAliasController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiUrlAliasController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
-
         }
+
         #region Get
 
         // GET api/url-alias/id
@@ -54,7 +55,7 @@ namespace Mix.Cms.Api.Controllers.v1
             {
                 var model = new MixUrlAlias()
                 {
-                    Status = MixService.GetConfig<int>("DefaultStatus")
+                    Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus)
                     ,
                     Priority = UpdateViewModel.Repository.Max(a => a.Priority).Data + 1
                 };
@@ -63,7 +64,6 @@ namespace Mix.Cms.Api.Controllers.v1
                 return Ok(JObject.FromObject(result));
             }
         }
-
 
         #endregion Get
 
@@ -91,7 +91,7 @@ namespace Mix.Cms.Api.Controllers.v1
         {
             ParseRequestPagingDate(request);
             Expression<Func<MixUrlAlias, bool>> predicate = model =>
-                        (!request.Status.HasValue || model.Status == request.Status.Value)
+                        (string.IsNullOrEmpty(request.Status) || model.Status == request.Status)
                         && (string.IsNullOrWhiteSpace(request.Keyword)
                             || (model.Alias.Contains(request.Keyword))
                             )
@@ -101,8 +101,7 @@ namespace Mix.Cms.Api.Controllers.v1
                         && (!request.ToDate.HasValue
                             || (model.CreatedDateTime <= request.ToDate.Value)
                         );
-            string key = $"{request.Key}_{request.PageSize}_{request.PageIndex}";
-            var portalResult = await base.GetListAsync<UpdateViewModel>(key, request, predicate);
+            var portalResult = await base.GetListAsync<UpdateViewModel>(request, predicate);
             return Ok(JObject.FromObject(portalResult));
         }
 

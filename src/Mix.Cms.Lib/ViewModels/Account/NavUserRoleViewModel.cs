@@ -11,13 +11,20 @@ namespace Mix.Cms.Lib.ViewModels.Account
         #region Properties
 
         #region Models
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("userId")]
         public string UserId { get; set; }
+
         [JsonProperty("roleId")]
         public string RoleId { get; set; }
+
         [JsonProperty("applicationUserId")]
         public string ApplicationUserId { get; set; }
-        #endregion
+
+        #endregion Models
 
         #region Views
 
@@ -30,8 +37,9 @@ namespace Mix.Cms.Lib.ViewModels.Account
         [JsonProperty("role")]
         public RoleViewModel Role { get; set; }
 
-        #endregion
-        #endregion
+        #endregion Views
+
+        #endregion Properties
 
         #region Contructors
 
@@ -44,7 +52,7 @@ namespace Mix.Cms.Lib.ViewModels.Account
         {
         }
 
-        #endregion
+        #endregion Contructors
 
         #region Overrides
 
@@ -53,12 +61,7 @@ namespace Mix.Cms.Lib.ViewModels.Account
             Role = RoleViewModel.Repository.GetSingleModel(r => r.Id == RoleId, _context, _transaction).Data;
             Description = Role?.Name;
         }
-        #endregion
 
-        #region Expands
-
-        #endregion
-
-
+        #endregion Overrides
     }
 }

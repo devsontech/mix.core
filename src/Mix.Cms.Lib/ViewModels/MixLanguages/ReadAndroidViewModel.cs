@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Common.Helper;
 using Mix.Domain.Core.ViewModels;
@@ -19,12 +20,17 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
         #region Properties
 
         #region Models
-
+        [JsonProperty("id")]
+        public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
         [Required]
         [JsonProperty("keyword")]
         public string Keyword { get; set; }
-
-
 
         [JsonProperty("dataType")]
         public MixDataType DataType { get; set; }
@@ -35,6 +41,7 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
         [Required]
         [JsonProperty("defaultValue")]
         public string DefaultValue { get; set; }
+
         #endregion Models
 
         #endregion Properties
@@ -126,12 +133,12 @@ namespace Mix.Cms.Lib.ViewModels.MixLanguages
             {
                 if (isRoot)
                 {
-                    context?.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
             return result;
         }
 
-        #endregion
+        #endregion Expands
     }
 }

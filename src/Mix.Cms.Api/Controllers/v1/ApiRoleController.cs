@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Mix.Cms.Hub;
+using Mix.Cms.Service.SignalR.Hubs;
 using Mix.Cms.Lib.Models.Account;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.ViewModels.Account;
@@ -28,13 +27,14 @@ namespace Mix.Cms.Api.Controllers.v1
         protected readonly UserManager<ApplicationUser> _userManager;
         protected readonly SignInManager<ApplicationUser> _signInManager;
         protected readonly RoleManager<IdentityRole> _roleManager;
-        protected readonly IEmailSender _emailSender;
+
+        //protected readonly IEmailSender _emailSender;
         protected readonly ILogger _logger;
 
         public ApiRoleController(UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             RoleManager<IdentityRole> roleManager,
-            IEmailSender emailSender,
+            //IEmailSender emailSender,
             ILogger<ApiRoleController> logger,
             IMemoryCache memoryCache,
             IHubContext<PortalHub> hubContext) : base(null, memoryCache, hubContext)
@@ -42,7 +42,7 @@ namespace Mix.Cms.Api.Controllers.v1
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
-            _emailSender = emailSender;
+            //_emailSender = emailSender;
             _logger = logger;
         }
 
@@ -50,7 +50,6 @@ namespace Mix.Cms.Api.Controllers.v1
         [HttpGet("claims")]
         public object Claims()
         {
-
             return User.Claims.Select(c =>
             new
             {
@@ -71,11 +70,11 @@ namespace Mix.Cms.Api.Controllers.v1
                 case "portal":
                     var beResult = await UpdateViewModel.Repository.GetSingleModelAsync(r => r.Id == id);
                     return JObject.FromObject(beResult);
+
                 default:
                     var result = await RoleViewModel.Repository.GetSingleModelAsync(r => r.Id == id);
                     return JObject.FromObject(result);
             }
-
         }
 
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -130,7 +129,6 @@ namespace Mix.Cms.Api.Controllers.v1
             };
         }
 
-
         // POST api/role
         [HttpPost, HttpOptions]
         [Route("save")]
@@ -165,7 +163,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         result.Exception = saveResult.Exception;
                         result.Errors.AddRange(saveResult.Errors);
-
                     }
                 }
                 else
@@ -182,14 +179,12 @@ namespace Mix.Cms.Api.Controllers.v1
             return new RepositoryResponse<Lib.ViewModels.MixPortalPageRoles.ReadViewModel>();
         }
 
-
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "SuperAdmin")]
         [Route("delete/{name}")]
         public async Task<RepositoryResponse<AspNetRoles>> Delete(string name)
         {
             if (name != "SuperAdmin")
             {
-
                 var result = await RoleViewModel.Repository.RemoveModelAsync(r => r.Name == name);
                 return result;
             }
@@ -200,7 +195,5 @@ namespace Mix.Cms.Api.Controllers.v1
                 };
             }
         }
-
-
     }
 }

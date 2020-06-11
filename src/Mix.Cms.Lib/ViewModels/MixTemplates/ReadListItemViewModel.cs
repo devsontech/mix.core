@@ -7,7 +7,6 @@ using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
 using System;
 
-
 namespace Mix.Cms.Lib.ViewModels.MixTemplates
 {
     public class ReadListItemViewModel
@@ -17,16 +16,14 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
 
         #region Models
 
-        [JsonIgnore]
         [JsonProperty("id")]
         public int Id { get; set; }
 
-        [JsonIgnore]
-        [JsonProperty("templateId")]
-        public int TemplateId { get; set; }
+        [JsonProperty("themeId")]
+        public int ThemeId { get; set; }
 
-        [JsonProperty("templateName")]
-        public string TemplateName { get; set; }
+        [JsonProperty("themeName")]
+        public string ThemeName { get; set; }
 
         [JsonProperty("folderType")]
         public string FolderType { get; set; }
@@ -37,58 +34,63 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
         [JsonProperty("fileName")]
         public string FileName { get; set; }
 
+        [JsonProperty("extension")]
+        public string Extension { get; set; }
+
+        [JsonProperty("content")]
+        public string Content { get; set; }
+
+        [JsonProperty("mobileContent")]
+        public string MobileContent { get; set; } = "{}";
+
+        [JsonProperty("spaContent")]
+        public string SpaContent { get; set; } = "";
+
         [JsonProperty("scripts")]
         public string Scripts { get; set; }
 
         [JsonProperty("styles")]
         public string Styles { get; set; }
 
-        [JsonProperty("extension")]
-        public string Extension { get; set; }
-
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
-
-        [JsonIgnore]
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
-        [JsonIgnore]
         [JsonProperty("modifiedBy")]
         public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
 
         #endregion Models
 
         #region Views
 
-        [JsonIgnore]
+
         [JsonProperty("assetFolder")]
-        public string AssetFolder
-        {
-            get
-            {
+        public string AssetFolder {
+            get {
                 return CommonHelper.GetFullPath(new string[] {
                     MixConstants.Folder.FileFolder,
                     MixConstants.Folder.TemplatesAssetFolder,
-                    TemplateName });
+                    ThemeName });
             }
         }
 
-        [JsonIgnore]
+        
         [JsonProperty("templateFolder")]
-        public string TemplateFolder
-        {
-            get
-            {
-                return CommonHelper.GetFullPath(new string[] { MixConstants.Folder.TemplatesFolder, TemplateName });
+        public string TemplateFolder {
+            get {
+                return CommonHelper.GetFullPath(new string[] { MixConstants.Folder.TemplatesFolder, ThemeName });
             }
         }
 
         [JsonProperty("templatePath")]
-        public string TemplatePath
-        {
-            get
-            {
+        public string TemplatePath {
+            get {
                 return $"/{FileFolder}/{FileName}{Extension}";
             }
         }
@@ -134,8 +136,8 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
             {
                 int activeThemeId = MixService.GetConfig<int>(
                     MixConstants.ConfigurationKeyword.ThemeId, culture);
-
-                result = Repository.GetSingleModel(t => t.FolderType == temp[0] && t.FileName == temp[1].Split('.')[0] && t.ThemeId == activeThemeId
+                string name = temp[1].Split('.')[0];
+                result = Repository.GetSingleModel(t => t.FolderType == temp[0] && t.FileName == name && t.ThemeId == activeThemeId
                     , _context, _transaction);
             }
             return result;
@@ -162,9 +164,8 @@ namespace Mix.Cms.Lib.ViewModels.MixTemplates
                 FileName = MixService.GetConfig<string>("DefaultTemplate"),
                 Content = "<div></div>"
             });
-
         }
-        #endregion Expands
 
+        #endregion Expands
     }
 }

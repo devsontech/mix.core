@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
 using Mix.Common.Helper;
@@ -22,6 +23,10 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
 
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [JsonProperty("name")]
         public string Name { get; set; }
@@ -40,7 +45,7 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
 
         [JsonProperty("edmTemplate")]
         public string EdmTemplate { get; set; }
-
+        
         [JsonProperty("title")]
         public string Title { get; set; }
 
@@ -52,30 +57,34 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
 
         [JsonProperty("type")]
         public MixModuleType Type { get; set; }
-        [JsonProperty("status")]
-        public MixContentStatus Status { get; set; }
-
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
-        [JsonProperty("modifiedBy")]
-        public string ModifiedBy { get; set; }
 
         [JsonProperty("pageSize")]
         public int? PageSize { get; set; }
-        #endregion Models
 
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
+        #endregion Models
         #region Views
+
         [JsonProperty("domain")]
         public string Domain { get { return MixService.GetConfig<string>("Domain"); } }
 
         [JsonProperty("detailsUrl")]
         public string DetailsUrl { get; set; }
+
         [JsonProperty("imageUrl")]
-        public string ImageUrl
-        {
-            get
-            {
+        public string ImageUrl {
+            get {
                 if (!string.IsNullOrEmpty(Image) && (Image.IndexOf("http") == -1) && Image[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -88,11 +97,10 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                 }
             }
         }
+
         [JsonProperty("thumbnailUrl")]
-        public string ThumbnailUrl
-        {
-            get
-            {
+        public string ThumbnailUrl {
+            get {
                 if (Thumbnail != null && Thumbnail.IndexOf("http") == -1 && Thumbnail[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -107,29 +115,28 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
         }
 
         [JsonProperty("columns")]
-        public List<ModuleFieldViewModel> Columns
-        {
+        public List<ModuleFieldViewModel> Columns {
             get { return Fields == null ? null : JsonConvert.DeserializeObject<List<ModuleFieldViewModel>>(Fields); }
             set { Fields = JsonConvert.SerializeObject(value); }
         }
 
         [JsonProperty("view")]
         public MixTemplates.ReadListItemViewModel View { get; set; }
+
         [JsonProperty("formView")]
         public MixTemplates.ReadListItemViewModel FormView { get; set; }
 
         [JsonProperty("edmView")]
         public MixTemplates.ReadListItemViewModel EdmView { get; set; }
+
         [JsonProperty("data")]
         public PaginationModel<ViewModels.MixModuleDatas.ReadViewModel> Data { get; set; } = new PaginationModel<ViewModels.MixModuleDatas.ReadViewModel>();
 
         [JsonProperty("posts")]
         public PaginationModel<MixModulePosts.ReadViewModel> Posts { get; set; } = new PaginationModel<MixModulePosts.ReadViewModel>();
 
-        public string TemplatePath
-        {
-            get
-            {
+        public string TemplatePath {
+            get {
                 return CommonHelper.GetFullPath(new string[]
                 {
                     ""
@@ -139,10 +146,9 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                 });
             }
         }
-        public string FormTemplatePath
-        {
-            get
-            {
+
+        public string FormTemplatePath {
+            get {
                 return CommonHelper.GetFullPath(new string[]
                 {
                     ""
@@ -152,10 +158,9 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                 });
             }
         }
-        public string EdmTemplatePath
-        {
-            get
-            {
+
+        public string EdmTemplatePath {
+            get {
                 return CommonHelper.GetFullPath(new string[]
                 {
                     ""
@@ -165,6 +170,7 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                 });
             }
         }
+
         [JsonProperty("attributeData")]
         public MixRelatedAttributeDatas.ReadMvcViewModel AttributeData { get; set; }
 
@@ -202,6 +208,7 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
         #endregion Overrides
 
         #region Expand
+
         private void LoadAttributes(MixCmsContext _context, IDbContextTransaction _transaction)
         {
             var getAttrs = MixAttributeSets.UpdateViewModel.Repository.GetSingleModel(m => m.Name == MixConstants.AttributeSetName.ADDITIONAL_FIELD_MODULE, _context, _transaction);
@@ -255,9 +262,11 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                     case MixModuleType.SubPost:
                         dataExp = m => m.ModuleId == Id && m.Specificulture == Specificulture && (m.PostId == postId);
                         break;
+
                     case MixModuleType.ListPost:
                         postExp = n => n.ModuleId == Id && n.Specificulture == Specificulture;
                         break;
+
                     default:
                         dataExp = m => m.ModuleId == Id && m.Specificulture == Specificulture;
                         postExp = n => n.ModuleId == Id && n.Specificulture == Specificulture;
@@ -269,13 +278,14 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                     var getDataResult = MixModuleDatas.ReadViewModel.Repository
                     .GetModelListBy(
                         dataExp
-                        , MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.OrderBy), 0
+                        , MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.OrderBy
+                        ), 0
                         , pageSize, pageIndex
                         , _context: context, _transaction: transaction);
                     if (getDataResult.IsSucceed)
                     {
-                        getDataResult.Data.JsonItems = new List<JObject>();
-                        getDataResult.Data.Items.ForEach(d => getDataResult.Data.JsonItems.Add(d.JItem));
+                        //getDataResult.Data.JsonItems = new List<JObject>();
+                        //getDataResult.Data.Items.ForEach(d => getDataResult.Data.JsonItems.Add(d.JItem));
                         Data = getDataResult.Data;
                     }
                 }
@@ -301,10 +311,11 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
                 if (isRoot)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
+
         public T Property<T>(string fieldName)
         {
             if (AttributeData != null)
@@ -323,8 +334,8 @@ namespace Mix.Cms.Lib.ViewModels.MixModules
             {
                 return default(T);
             }
-
         }
+
         #endregion Expand
     }
 }

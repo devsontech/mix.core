@@ -1,10 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
-using Mix.Domain.Core.ViewModels;
 using Mix.Domain.Data.ViewModels;
 using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Mix.Cms.Lib.ViewModels.MixRelatedAttributeSets
 {
@@ -17,17 +14,13 @@ namespace Mix.Cms.Lib.ViewModels.MixRelatedAttributeSets
 
         public int Id { get; set; }
         public int ParentId { get; set; }
-        public int ParentType { get; set; }
+        public MixEnums.MixAttributeSetDataType ParentType { get; set; }
         public DateTime CreatedDateTime { get; set; }
         public int Status { get; set; }
         public string Description { get; set; }
         public string Image { get; set; }
 
         #endregion Models
-
-        #region Views
-
-        #endregion Views
 
         #endregion Properties
 

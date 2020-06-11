@@ -1,10 +1,7 @@
 ﻿using AutoMapper.Configuration;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.Extensions.Caching.Memory;
 using Mix.Cms.Lib;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
@@ -25,10 +22,9 @@ namespace Mix.Cms.Web.Controllers
         protected bool forbidden = false;
         protected bool isValid = true;
         protected string _redirectUrl;
-        protected bool _forbiddenPortal
-        {
-            get
-            {
+
+        protected bool _forbiddenPortal {
+            get {
                 var allowedIps = MixService.GetIpConfig<JArray>("AllowedPortalIps") ?? new JArray();
                 string remoteIp = Request.HttpContext?.Connection?.RemoteIpAddress?.ToString();
                 return forbidden || (
@@ -41,26 +37,11 @@ namespace Mix.Cms.Web.Controllers
                 );
             }
         }
-        protected IConfiguration _configuration;
-        protected IHostingEnvironment _env;
-        protected readonly IMemoryCache _memoryCache;
-        protected readonly IHttpContextAccessor _accessor;
-        public BaseController(IHostingEnvironment env, IMemoryCache memoryCache, IHttpContextAccessor accessor)
-        {
-            _env = env;
-            _memoryCache = memoryCache;
-            _accessor = accessor;
-            // Set CultureInfo
-            var cultureInfo = new CultureInfo(culture);
-            CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
-            CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
-        }
 
-        public BaseController(IHostingEnvironment env, IConfiguration configuration, IHttpContextAccessor accessor)
+        protected IConfiguration _configuration;
+
+        public BaseController()
         {
-            _configuration = configuration;
-            _accessor = accessor;
-            _env = env;
             // Set CultureInfo
             var cultureInfo = new CultureInfo(culture);
             CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
@@ -69,22 +50,16 @@ namespace Mix.Cms.Web.Controllers
 
         public ViewContext ViewContext { get; set; }
         private string _culture;
-        public string culture
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(_culture))
-                {
-                    _culture = RouteData?.Values["culture"]?.ToString().ToLower() == null
-                    || RouteData?.Values["culture"]?.ToString().ToLower() == "init"
-                ? MixService.GetConfig<string>("DefaultCulture")
-                : RouteData?.Values["culture"].ToString();
-                }
-                return _culture;
+
+        public string culture {
+            get {
+                return RouteData?.Values["culture"]?.ToString().ToLower()
+                    ?? _culture
+                    ?? MixService.GetConfig<string>("DefaultCulture");
             }
             set { _culture = value; }
         }
-       
+
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             ValidateRequest();
@@ -101,7 +76,7 @@ namespace Mix.Cms.Web.Controllers
                 string remoteIp = Request.HttpContext?.Connection?.RemoteIpAddress?.ToString();
                 if (
                         // allow localhost
-                        //remoteIp != "::1" &&                    
+                        //remoteIp != "::1" &&
                         allowedIps.Count > 0 &&
                         !allowedIps.Any(t => t["text"].Value<string>() == remoteIp) ||
                         (
@@ -113,7 +88,6 @@ namespace Mix.Cms.Web.Controllers
                     forbidden = true;
                 }
             }
-            base.OnActionExecuting(context);
         }
 
         protected virtual void ValidateRequest()
@@ -134,9 +108,10 @@ namespace Mix.Cms.Web.Controllers
         }
 
         #region Helper
+
         protected async Task<IActionResult> AliasAsync(string seoName)
         {
-            // Home Page            
+            // Home Page
 
             // If page name is null => return home page
             if (string.IsNullOrEmpty(seoName))
@@ -151,17 +126,19 @@ namespace Mix.Cms.Web.Controllers
 
                 predicate = p =>
                 p.Alias == seoName
-                && p.Status == (int)MixContentStatus.Published && p.Specificulture == culture;
+                && p.Status == MixContentStatus.Published.ToString() && p.Specificulture == culture;
 
-                getAlias = await Lib.ViewModels.MixUrlAliases.UpdateViewModel.Repository.GetSingleModelAsync(predicate);
+                getAlias = await Lib.ViewModels.MixUrlAliases.UpdateViewModel.Repository.GetFirstModelAsync(predicate);
                 if (getAlias.IsSucceed)// && getPage.Data.View != null
                 {
                     switch (getAlias.Data.Type)
                     {
                         case UrlAliasType.Page:
                             return await Page(int.Parse(getAlias.Data.SourceId));
+
                         case UrlAliasType.Post:
                             return await Post(int.Parse(getAlias.Data.SourceId));
+
                         case UrlAliasType.Module: // TODO: Create view for module
                         case UrlAliasType.ModuleData: // TODO: Create view for module data
                         default:
@@ -173,12 +150,10 @@ namespace Mix.Cms.Web.Controllers
                     return await Page(seoName);
                 }
             }
-
         }
 
         protected async System.Threading.Tasks.Task<IActionResult> Page(string seoName)
         {
-
             // Home Page
             int maxPageSize = MixService.GetConfig<int>("MaxPageSize");
             string orderBy = MixService.GetConfig<string>("OrderBy");
@@ -193,17 +168,18 @@ namespace Mix.Cms.Web.Controllers
             if (string.IsNullOrEmpty(seoName))
             {
                 predicate = p =>
-                p.Type == (int)MixPageType.Home
-                && p.Status == (int)MixContentStatus.Published && p.Specificulture == culture;
+                p.Type == MixPageType.Home.ToString()
+                && p.Status == MixContentStatus.Published.ToString() && p.Specificulture == culture;
             }
             else
             {
                 predicate = p =>
                 p.SeoName == seoName
-                && p.Status == (int)MixContentStatus.Published && p.Specificulture == culture;
+                && p.Status == MixContentStatus.Published.ToString() && p.Specificulture == culture;
             }
 
-            getPage = await Lib.ViewModels.MixPages.ReadMvcViewModel.Repository.GetSingleModelAsync(predicate);
+            getPage = await Lib.ViewModels.MixPages.ReadMvcViewModel.Repository.GetFirstModelAsync(predicate);
+
             if (getPage.IsSucceed)
             {
                 if (getPage.Data != null)
@@ -242,9 +218,9 @@ namespace Mix.Cms.Web.Controllers
 
             predicate = p =>
             p.Id == pageId
-            && p.Status == (int)MixContentStatus.Published && p.Specificulture == culture;
+            && p.Status == MixContentStatus.Published.ToString() && p.Specificulture == culture;
 
-            getPage = await Lib.ViewModels.MixPages.ReadMvcViewModel.Repository.GetSingleModelAsync(predicate);
+            getPage = await Lib.ViewModels.MixPages.ReadMvcViewModel.Repository.GetFirstModelAsync(predicate);
             if (getPage.IsSucceed)
             {
                 getPage.Data.LoadData(pageIndex: page - 1, pageSize: pageSize);
@@ -271,9 +247,9 @@ namespace Mix.Cms.Web.Controllers
                 return await Error("404");
             }
         }
+
         protected async System.Threading.Tasks.Task<IActionResult> Post(int id)
         {
-
             RepositoryResponse<Lib.ViewModels.MixPosts.ReadMvcViewModel> getPost = null;
             var cacheKey = $"mvc_{culture}_post_{id}";
             if (MixService.GetConfig<bool>("IsCache"))
@@ -285,10 +261,10 @@ namespace Mix.Cms.Web.Controllers
                 Expression<Func<MixPost, bool>> predicate;
                 predicate = p =>
                 p.Id == id
-                && p.Status == (int)MixContentStatus.Published
+                && p.Status == MixContentStatus.Published.ToString()
                 && p.Specificulture == culture;
 
-                getPost = await Lib.ViewModels.MixPosts.ReadMvcViewModel.Repository.GetSingleModelAsync(predicate);
+                getPost = await Lib.ViewModels.MixPosts.ReadMvcViewModel.Repository.GetFirstModelAsync(predicate);
                 if (getPost.IsSucceed)
                 {
                     getPost.Data.DetailsUrl = GenerateDetailsUrl(
@@ -300,12 +276,11 @@ namespace Mix.Cms.Web.Controllers
                         if (getPost.Data.PostNavs != null && getPost.Data.PostNavs.Count > 0)
                         {
                             getPost.Data.PostNavs.ForEach(n => n.RelatedPost.DetailsUrl = GenerateDetailsUrl(
-                                new { culture = culture, action = "post", id = n.RelatedPost.Id, seoName = n.RelatedPost.SeoName }));
+                                new { action = "post", culture = culture, id = n.RelatedPost.Id, seoName = n.RelatedPost.SeoName }));
                         }
                         //_ = MixCacheService.SetAsync(cacheKey, getPost);
                     }
                 }
-
             }
 
             if (getPost.IsSucceed)
@@ -336,9 +311,9 @@ namespace Mix.Cms.Web.Controllers
 
             predicate = p =>
             p.Id == id
-            && p.Status == (int)MixContentStatus.Published && p.Specificulture == culture;
+            && p.Status == MixContentStatus.Published.ToString() && p.Specificulture == culture;
 
-            getData = await Lib.ViewModels.MixModules.ReadMvcViewModel.Repository.GetSingleModelAsync(predicate);
+            getData = await Lib.ViewModels.MixModules.ReadMvcViewModel.Repository.GetFirstModelAsync(predicate);
             if (getData.IsSucceed)
             {
                 getData.Data.LoadData(pageIndex: page - 1, pageSize: pageSize);
@@ -374,7 +349,7 @@ namespace Mix.Cms.Web.Controllers
                 {
                     if (postNav.Post != null)
                     {
-                        postNav.Post.DetailsUrl = GenerateDetailsUrl(new { culture = culture, action = "post", id = postNav.PostId, seoName = postNav.Post.SeoName });
+                        postNav.Post.DetailsUrl = GenerateDetailsUrl(new { action = "post", culture = culture, id = postNav.PostId, seoName = postNav.Post.SeoName });
                     }
                 }
             }
@@ -387,20 +362,20 @@ namespace Mix.Cms.Web.Controllers
                 }
             }
         }
+
         protected void GeneratePageDetailsUrls(Lib.ViewModels.MixModules.ReadMvcViewModel module)
         {
             module.DetailsUrl = GenerateDetailsUrl(
-                            new { culture = culture, action = "md", id = module.Id, seoName = module.Name }
+                            new { action = "module", culture = culture, id = module.Id, seoName = module.Name }
                             );
             if (module.Posts != null)
             {
-
                 foreach (var postNav in module.Posts.Items)
                 {
                     if (postNav.Post != null)
                     {
                         postNav.Post.DetailsUrl = GenerateDetailsUrl(
-                            new { culture = culture, action = "post", id = postNav.PostId, seoName = postNav.Post.SeoName }
+                            new { action = "post", culture = culture, id = postNav.PostId, seoName = postNav.Post.SeoName }
                             );
                     }
                 }
@@ -417,6 +392,6 @@ namespace Mix.Cms.Web.Controllers
             return await Page(page);
         }
 
-        #endregion
+        #endregion Helper
     }
 }

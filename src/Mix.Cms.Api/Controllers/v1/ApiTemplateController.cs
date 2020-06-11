@@ -25,9 +25,10 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiTemplateController :
             BaseGenericApiController<MixCmsContext, MixTemplate>
     {
-        public ApiTemplateController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiTemplateController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
         }
+
         #region Get
 
         [HttpGet, HttpOptions]
@@ -35,7 +36,6 @@ namespace Mix.Cms.Api.Controllers.v1
         [Route("details/{viewType}/{themeId}/{folderType}")]
         public async Task<ActionResult<RepositoryResponse<UpdateViewModel>>> DetailsAsync(string viewType, int themeId, string folderType, int? id)
         {
-
             if (id.HasValue)
             {
                 Expression<Func<MixTemplate, bool>> predicate = model => model.Id == id;
@@ -49,7 +49,7 @@ namespace Mix.Cms.Api.Controllers.v1
                 {
                     var model = new MixTemplate()
                     {
-                        Status = (int)MixContentStatus.Preview,
+                        Status = MixContentStatus.Preview.ToString(),
                         ThemeId = themeId,
                         ThemeName = getTheme.Data.Name,
                         Extension = MixService.GetConfig<string>("TemplateExtension"),
@@ -74,7 +74,6 @@ namespace Mix.Cms.Api.Controllers.v1
             return await base.DeleteAsync<UpdateViewModel>(
                 model => model.Id == id, true);
         }
-
 
         #endregion Get
 
@@ -112,17 +111,18 @@ namespace Mix.Cms.Api.Controllers.v1
                         || model.FolderType == request.Keyword
                     ));
 
-            string key = $"{request.Key}_{themeId}_{request.PageSize}_{request.PageIndex}";
             switch (request.Key)
             {
                 case "mvc":
-                    var mvcResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
+                    var mvcResult = await base.GetListAsync<ReadViewModel>(request, predicate);
                     return Ok(JObject.FromObject(mvcResult));
+
                 case "portal":
-                    var portalResult = await base.GetListAsync<UpdateViewModel>(key, request, predicate);
+                    var portalResult = await base.GetListAsync<UpdateViewModel>(request, predicate);
                     return Ok(JObject.FromObject(portalResult));
+
                 default:
-                    var listItemResult = await base.GetListAsync<UpdateViewModel>(key, request, predicate);
+                    var listItemResult = await base.GetListAsync<UpdateViewModel>(request, predicate);
 
                     return JObject.FromObject(listItemResult);
             }

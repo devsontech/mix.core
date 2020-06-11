@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Domain.Data.ViewModels;
+using Newtonsoft.Json;
 using System;
 
 namespace Mix.Cms.Lib.ViewModels.MixRelatedAttributeSets
@@ -9,22 +10,40 @@ namespace Mix.Cms.Lib.ViewModels.MixRelatedAttributeSets
        : ViewModelBase<MixCmsContext, MixRelatedAttributeSet, UpdateViewModel>
     {
         #region Properties
-        #region Models
-        public int Id { get; set; }
-        public int ParentId { get; set; }
-        public int ParentType { get; set; }
-        public DateTime CreatedDateTime { get; set; }
-        public int Status { get; set; }
-        public string Description { get; set; }
-        public string Image { get; set; }
 
+        #region Models
+        [JsonProperty("id")]
+        public int Id { get; set; }
+        [JsonProperty("parentId")]
+        public int ParentId { get; set; }
+        [JsonProperty("parentType")]
+        public MixEnums.MixAttributeSetDataType ParentType { get; set; }
+        [JsonProperty("description")]
+        public string Description { get; set; }
+        [JsonProperty("image")]
+        public string Image { get; set; }
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion
+
         #region Views
 
         public MixAttributeSets.UpdateViewModel Data { get; set; }
 
         #endregion Views
-        #endregion
+
+        #endregion Properties
+
         public UpdateViewModel(MixRelatedAttributeSet model, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
             : base(model, _context, _transaction)
         {
@@ -33,14 +52,14 @@ namespace Mix.Cms.Lib.ViewModels.MixRelatedAttributeSets
         public UpdateViewModel() : base()
         {
         }
-        
 
         #region overrides
 
         public override MixRelatedAttributeSet ParseModel(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
-            if (CreatedDateTime == default(DateTime))
+            if (Id==0)
             {
+                Id = Repository.Count().Data + 1;
                 CreatedDateTime = DateTime.UtcNow;
             }
             return base.ParseModel(_context, _transaction);
@@ -56,12 +75,6 @@ namespace Mix.Cms.Lib.ViewModels.MixRelatedAttributeSets
                 Data = getData.Data;
             }
         }
-
-
-        #region Async
-
-
-        #endregion Async
 
         #endregion overrides
     }

@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
-using Mix.Cms.Lib.ViewModels.MixSystem;
+using Mix.Cms.Lib.ViewModels.MixCultures;
 using Mix.Domain.Core.Models;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,11 +29,9 @@ namespace Mix.Cms.Lib.ViewModels.MixPages
                             Lcid = culture.Lcid,
                             IsSupported = culture.Specificulture == initCulture || _context.MixPage.Any(p => p.Id == id && p.Specificulture == culture.Specificulture)
                         });
-
                 }
             }
             return result;
         }
-
     }
 }

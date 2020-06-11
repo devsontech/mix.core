@@ -8,7 +8,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Repositories;
 using Mix.Cms.Lib.ViewModels;
-using Mix.Common.Helper;
 using Mix.Domain.Core.ViewModels;
 
 namespace Mix.Cms.Api.Controllers.v1
@@ -17,9 +16,10 @@ namespace Mix.Cms.Api.Controllers.v1
     [Route("api/v1/file")]
     public class ApiFileController : BaseApiController<MixCmsContext>
     {
-        public ApiFileController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiFileController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
         }
+
         #region Post
 
         // Post api/files/id
@@ -62,7 +62,7 @@ namespace Mix.Cms.Api.Controllers.v1
         /// <summary>
         /// Uploads the image.
         /// </summary>
-        /// <param name="image">The img information.</param>    
+        /// <param name="image">The img information.</param>
         /// <param name="file"></param> Ex: { "base64": "", "fileFolder":"" }
         /// <returns></returns>
         [Route("upload-file")]
@@ -113,6 +113,7 @@ namespace Mix.Cms.Api.Controllers.v1
                 }
             };
         }
+
         #endregion Post
     }
 }

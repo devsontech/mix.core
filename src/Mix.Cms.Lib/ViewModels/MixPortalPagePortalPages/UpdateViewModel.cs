@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Common.Helper;
 using Mix.Domain.Core.ViewModels;
@@ -22,13 +23,15 @@ namespace Mix.Cms.Lib.ViewModels.MixPortalPagePortalPages
         {
         }
 
-
+        #region Properties
+        #region Models
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
         [JsonProperty("id")]
         public int Id { get; set; }
 
         [JsonProperty("parentId")]
         public int ParentId { get; set; }
-
 
         [JsonProperty("image")]
         public string Image { get; set; }
@@ -38,7 +41,19 @@ namespace Mix.Cms.Lib.ViewModels.MixPortalPagePortalPages
 
         [JsonProperty("level")]
         public int Level { get; set; }
-
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
+        #endregion
 
         #region Views
 
@@ -52,8 +67,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPortalPagePortalPages
         public MixPortalPages.ReadViewModel ParentPage { get; set; }
 
         #endregion Views
+        #endregion
 
         #region overrides
+
         public override async Task<RepositoryResponse<bool>> SaveSubModelsAsync(MixPortalPageNavigation parent, MixCmsContext _context, IDbContextTransaction _transaction)
         {
             if (Page != null)
@@ -71,8 +88,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPortalPagePortalPages
             {
                 return await base.SaveSubModelsAsync(parent, _context, _transaction);
             }
-
         }
+
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var getCategory = MixPortalPages.UpdateRolePermissionViewModel.Repository.GetSingleModel(p => p.Id == Id
@@ -102,7 +119,6 @@ namespace Mix.Cms.Lib.ViewModels.MixPortalPagePortalPages
             var result = new RepositoryResponse<List<UpdateViewModel>>();
             try
             {
-
                 foreach (var item in cates)
                 {
                     var saveResult = await item.SaveModelAsync(false, context, transaction);
@@ -131,9 +147,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPortalPagePortalPages
             {
                 //if current Context is Root
                 transaction.Dispose();
-                context.Dispose();
+                context.Database.CloseConnection();transaction.Dispose();context.Dispose();
             }
         }
-        #endregion
+
+        #endregion Expands
     }
 }

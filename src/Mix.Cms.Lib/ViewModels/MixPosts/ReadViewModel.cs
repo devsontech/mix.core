@@ -25,6 +25,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [JsonProperty("template")]
         public string Template { get; set; }
@@ -34,6 +38,14 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("image")]
         public string Image { get; set; }
+
+        [JsonIgnore]
+        [JsonProperty("extraFields")]
+        public string ExtraFields { get; set; } = "[]";
+
+        [JsonIgnore]
+        [JsonProperty("extraProperties")]
+        public string ExtraProperties { get; set; } = "[]";
 
         [JsonProperty("icon")]
         public string Icon { get; set; }
@@ -51,33 +63,41 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         [JsonProperty("seoName")]
         public string SeoName { get; set; }
 
+        [JsonProperty("seoTitle")]
+        public string SeoTitle { get; set; }
+
+        [JsonProperty("seoDescription")]
+        public string SeoDescription { get; set; }
+
+        [JsonProperty("seoKeywords")]
+        public string SeoKeywords { get; set; }
+
+        [JsonProperty("source")]
+        public string Source { get; set; }
+
         [JsonProperty("views")]
         public int? Views { get; set; }
 
         [JsonProperty("type")]
-        public int Type { get; set; }
-
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
+        public MixContentStatus Type { get; set; }
 
         [JsonProperty("publishedDateTime")]
         public DateTime? PublishedDateTime { get; set; }
 
-        [JsonProperty("createdBy")]
+        [JsonProperty("tags")]
+        public string Tags { get; set; } = "[]";
+
         public string CreatedBy { get; set; }
-
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
         [JsonProperty("modifiedBy")]
         public string ModifiedBy { get; set; }
-
-        [JsonProperty("tags")]
-        public string Tags { get; set; }
-
-        [JsonIgnore]
-        [JsonProperty("extraProperties")]
-        public string ExtraProperties { get; set; } = "[]";
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
+        [JsonProperty("status")]
+        public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #region Views
@@ -86,10 +106,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public string Domain { get { return MixService.GetConfig<string>("Domain", Specificulture); } }
 
         [JsonProperty("imageUrl")]
-        public string ImageUrl
-        {
-            get
-            {
+        public string ImageUrl {
+            get {
                 if (!string.IsNullOrEmpty(Image) && (Image.IndexOf("http") == -1) && Image[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -104,10 +122,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         }
 
         [JsonProperty("thumbnailUrl")]
-        public string ThumbnailUrl
-        {
-            get
-            {
+        public string ThumbnailUrl {
+            get {
                 if (Thumbnail != null && Thumbnail.IndexOf("http") == -1 && Thumbnail[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -123,8 +139,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("detailsUrl")]
         public string DetailsUrl { get; set; }
+
         [JsonProperty("properties")]
         public List<ExtraProperty> Properties { get; set; }
+
         #endregion Views
 
         #endregion Properties
@@ -142,16 +160,17 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         #endregion Contructors
 
         #region Expands
+
         //Get Property by name
         public string Property(string name)
         {
             var prop = Properties.FirstOrDefault(p => p.Name.ToLower() == name.ToLower());
             return prop?.Value;
-
         }
+
         public static async Task<RepositoryResponse<PaginationModel<ReadViewModel>>> GetModelListByCategoryAsync(
             int pageId, string specificulture
-            , string orderByPropertyName, int direction
+            , string orderByPropertyName, Heart.Enums.MixHeartEnums.DisplayDirection direction
             , int? pageSize = 1, int? pageIndex = 0, int? skip = null, int? top = null
             , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
@@ -162,7 +181,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 var query = context.MixPagePost.Include(ac => ac.MixPost)
                     .Where(ac =>
                     ac.PageId == pageId && ac.Specificulture == specificulture
-                    && ac.Status == (int)MixEnums.MixContentStatus.Published).Select(ac => ac.MixPost);
+                    && ac.Status == MixEnums.MixContentStatus.Published.ToString()).Select(ac => ac.MixPost);
                 PaginationModel<ReadViewModel> result = await Repository.ParsePagingQueryAsync(
                     query, orderByPropertyName
                     , direction
@@ -196,7 +215,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 if (_context == null)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
@@ -205,7 +224,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         public static RepositoryResponse<PaginationModel<ReadViewModel>> GetModelListByCategory(
            int pageId, string specificulture
-           , string orderByPropertyName, int direction
+           , string orderByPropertyName, Heart.Enums.MixHeartEnums.DisplayDirection direction
            , int? pageSize = 1, int? pageIndex = 0
            , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
@@ -216,7 +235,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 var query = context.MixPagePost.Include(ac => ac.MixPost)
                     .Where(ac =>
                     ac.PageId == pageId && ac.Specificulture == specificulture
-                    && ac.Status == (int)MixContentStatus.Published).Select(ac => ac.MixPost);
+                    && ac.Status == MixContentStatus.Published.ToString()).Select(ac => ac.MixPost);
                 PaginationModel<ReadViewModel> result = Repository.ParsePagingQuery(
                     query, orderByPropertyName
                     , direction,
@@ -249,14 +268,14 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 if (_context == null)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
 
         public static RepositoryResponse<PaginationModel<ReadViewModel>> GetModelListByModule(
           int ModuleId, string specificulture
-          , string orderByPropertyName, int direction
+          , string orderByPropertyName, Heart.Enums.MixHeartEnums.DisplayDirection direction
           , int? pageSize = 1, int? pageIndex = 0
           , MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
@@ -267,7 +286,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 var query = context.MixModulePost.Include(ac => ac.MixPost)
                     .Where(ac =>
                     ac.ModuleId == ModuleId && ac.Specificulture == specificulture
-                    && (ac.Status == (int)MixContentStatus.Published || ac.Status == (int)MixContentStatus.Preview)).Select(ac => ac.MixPost);
+                    && (ac.Status == MixContentStatus.Published.ToString() || ac.Status == MixContentStatus.Preview.ToString())).Select(ac => ac.MixPost);
                 PaginationModel<ReadViewModel> result = Repository.ParsePagingQuery(
                     query, orderByPropertyName
                     , direction,
@@ -300,7 +319,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 if (_context == null)
                 {
                     //if current Context is Root
-                    context.Dispose();
+                    context.Database.CloseConnection();transaction.Dispose();context.Dispose();
                 }
             }
         }
@@ -310,6 +329,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         #endregion Expands
 
         #region Overrides
+
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             Properties = new List<ExtraProperty>();
@@ -323,6 +343,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 }
             }
         }
-        #endregion
+
+        #endregion Overrides
     }
 }

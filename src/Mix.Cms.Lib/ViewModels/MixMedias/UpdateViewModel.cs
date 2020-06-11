@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Repositories;
 using Mix.Cms.Lib.Services;
-using Mix.Cms.Lib.ViewModels.MixSystem;
+using Mix.Cms.Lib.ViewModels.MixCultures;
 using Mix.Common.Helper;
 using Mix.Domain.Core.Models;
 using Mix.Domain.Core.ViewModels;
@@ -11,7 +11,6 @@ using Mix.Domain.Data.ViewModels;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -26,7 +25,8 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
 
         [JsonProperty("id")]
         public int Id { get; set; }
-        
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
         [JsonProperty("extension")]
         public string Extension { get; set; }
 
@@ -57,15 +57,16 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
         [JsonProperty("tags")]
         public string Tags { get; set; }
 
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
         [JsonProperty("createdDateTime")]
         public DateTime CreatedDateTime { get; set; }
-
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
         [JsonProperty("modifiedBy")]
         public string ModifiedBy { get; set; }
-
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("status")]
         public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
@@ -76,10 +77,8 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
         public string Domain { get { return MixService.GetConfig<string>("Domain"); } }
 
         [JsonProperty("fullPath")]
-        public string FullPath
-        {
-            get
-            {
+        public string FullPath {
+            get {
                 if (!string.IsNullOrEmpty(FileName) && string.IsNullOrEmpty(TargetUrl))
                 {
                     return FileFolder.IndexOf("http") > 0 ? $"{FileFolder}/{FileName}{Extension}"
@@ -91,11 +90,10 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
                 }
             }
         }
+
         [JsonProperty("filePath")]
-        public string FilePath
-        {
-            get
-            {
+        public string FilePath {
+            get {
                 if (!string.IsNullOrEmpty(FileName) && string.IsNullOrEmpty(TargetUrl))
                 {
                     return FileFolder.IndexOf("http") > 0 ? $"{FileFolder}/{FileName}{Extension}"
@@ -110,8 +108,10 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
 
         [JsonProperty("mediaFile")]
         public FileViewModel MediaFile { get; set; }
+
         [JsonProperty("file")]
         public IFormFile File { get; set; }
+
         #endregion Views
 
         #endregion Properties
@@ -137,9 +137,6 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
             {
                 Id = Id > 0 ? Id : UpdateViewModel.Repository.Max(c => c.Id).Data + 1;
                 CreatedDateTime = DateTime.UtcNow;
-                IsClone = true;
-                Cultures = Cultures ?? LoadCultures(Specificulture, _context, _transaction);
-                Cultures.ForEach(c => c.IsSupported = true);                
             }
             if (string.IsNullOrEmpty(TargetUrl))
             {
@@ -149,9 +146,9 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
         }
 
         public override void Validate(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
-        {            
+        {
             if (MediaFile?.FileStream != null)
-            {   
+            {
                 FileFolder = $"{MixService.GetTemplateUploadFolder(Specificulture)}/{DateTime.UtcNow.ToString("yyyy-MM")}";
                 MediaFile.Filename = SeoHelper.GetSEOString(MediaFile.Filename).ToLower() + Guid.NewGuid().ToString("N");
                 MediaFile.FileFolder = FileFolder;
@@ -170,11 +167,10 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
                 {
                     IsValid = false;
                 }
-
             }
             else
             {
-                if (File!=null)
+                if (File != null)
                 {
                     FileFolder = $"{MixService.GetTemplateUploadFolder(Specificulture)}/{DateTime.UtcNow.ToString("yyyy-MM")}";
                     FileName = SeoHelper.GetSEOString(File.FileName.Substring(0, File.FileName.LastIndexOf('.'))) + DateTime.UtcNow.Ticks;
@@ -193,12 +189,10 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
             }
             FileType = FileType ?? "image";
             base.Validate(_context, _transaction);
-
         }
 
         public override void ExpandView(MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
-            Cultures = LoadCultures(Specificulture, _context, _transaction);
             MediaFile = new FileViewModel();
         }
 
@@ -224,8 +218,10 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
         }
 
         #endregion Overrides
+
         #region Expand
-        List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
+
+        private List<SupportedCulture> LoadCultures(string initCulture = null, MixCmsContext _context = null, IDbContextTransaction _transaction = null)
         {
             var getCultures = SystemCultureViewModel.Repository.GetModelList(_context, _transaction);
             var result = new List<SupportedCulture>();
@@ -245,12 +241,11 @@ namespace Mix.Cms.Lib.ViewModels.MixMedias
                             Lcid = culture.Lcid,
                             IsSupported = culture.Specificulture == initCulture || _context.MixMedia.Any(p => p.Id == Id && p.Specificulture == culture.Specificulture)
                         });
-
                 }
             }
             return result;
         }
-        #endregion
 
+        #endregion Expand
     }
 }

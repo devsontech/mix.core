@@ -2,8 +2,6 @@
 // The Mixcore Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -25,7 +23,7 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiMediaController :
       BaseGenericApiController<MixCmsContext, MixMedia>
     {
-        public ApiMediaController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiMediaController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
         }
 
@@ -72,7 +70,6 @@ namespace Mix.Cms.Api.Controllers.v1
             }
         }
 
-
         #endregion Get
 
         #region Post
@@ -105,7 +102,7 @@ namespace Mix.Cms.Api.Controllers.v1
             ParseRequestPagingDate(request);
             Expression<Func<MixMedia, bool>> predicate = model =>
                         model.Specificulture == _lang
-                        && (!request.Status.HasValue || model.Status == request.Status.Value)
+                        && (string.IsNullOrEmpty(request.Status) || model.Status == request.Status)
                         && (string.IsNullOrWhiteSpace(request.Keyword)
                             || (model.Title.Contains(request.Keyword)
                             || model.Description.Contains(request.Keyword)))
@@ -115,15 +112,12 @@ namespace Mix.Cms.Api.Controllers.v1
                         && (!request.ToDate.HasValue
                             || (model.CreatedDateTime <= request.ToDate.Value)
                         );
-            string key = $"{request.Key}_{request.PageSize}_{request.PageIndex}";
             switch (request.Key)
             {
-
                 default:
-                    var portalResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
+                    var portalResult = await base.GetListAsync<ReadViewModel>(request, predicate);
 
                     return Ok(JObject.FromObject(portalResult));
-
             }
         }
 
@@ -141,6 +135,7 @@ namespace Mix.Cms.Api.Controllers.v1
                 return new RepositoryResponse<List<UpdateViewModel>>();
             }
         }
+
         #endregion Post
 
         #region Helpers
@@ -174,7 +169,6 @@ namespace Mix.Cms.Api.Controllers.v1
             }
         }
 
-
-        #endregion
+        #endregion Helpers
     }
 }

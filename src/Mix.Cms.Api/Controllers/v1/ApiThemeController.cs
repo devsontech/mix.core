@@ -15,6 +15,7 @@ using Mix.Cms.Lib.Services;
 using Mix.Cms.Lib.ViewModels;
 using Mix.Cms.Lib.ViewModels.MixThemes;
 using Mix.Domain.Core.ViewModels;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -29,19 +30,17 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiThemeController :
         BaseGenericApiController<MixCmsContext, MixTheme>
     {
-        public ApiThemeController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiThemeController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
-
         }
-        #region Get
 
+        #region Get
 
         // GET api/theme/id
         [HttpGet, HttpOptions]
         [Route("sync/{id}")]
         public async Task<RepositoryResponse<List<Lib.ViewModels.MixTemplates.UpdateViewModel>>> Sync(int id)
         {
-
             var getTemplate = await Lib.ViewModels.MixTemplates.UpdateViewModel.Repository.GetModelListByAsync(
                  template => template.ThemeId == id).ConfigureAwait(false);
             foreach (var item in getTemplate.Data)
@@ -78,43 +77,48 @@ namespace Mix.Cms.Api.Controllers.v1
             string outputPath = $"Exports/Themes/{getTheme.Data.Name}";
             data.ThemeName = getTheme.Data.Name;
             data.Specificulture = _lang;
-            data.ProcessSelectedExportDataAsync();
-            string filename = $"schema";
-            var file = new FileViewModel()
+            var result = data.ProcessSelectedExportDataAsync();
+            if (result.IsSucceed)
             {
-                Filename = filename,
-                Extension = ".json",
-                FileFolder = $"{tempPath}/Data",
-                Content = JObject.FromObject(data).ToString()
-            };
+                string filename = $"schema";
+                var file = new FileViewModel()
+                {
+                    Filename = filename,
+                    Extension = ".json",
+                    FileFolder = $"{tempPath}/Data",
+                    Content = JObject.FromObject(data).ToString()
+                };
 
-            // Delete Existing folder
-            FileRepository.Instance.DeleteFolder(outputPath);
-            // Copy current templates file
-            FileRepository.Instance.CopyDirectory($"{getTheme.Data.TemplateFolder}", $"{tempPath}/Templates");
-            // Copy current assets files
-            FileRepository.Instance.CopyDirectory($"wwwroot/{getTheme.Data.AssetFolder}", $"{tempPath}/Assets");
-            // Copy current uploads files
-            FileRepository.Instance.CopyDirectory($"wwwroot/{getTheme.Data.UploadsFolder}", $"{tempPath}/Uploads");
-            // Save Site Structures
-            FileRepository.Instance.SaveFile(file);
+                // Delete Existing folder
+                FileRepository.Instance.DeleteFolder(outputPath);
+                // Copy current templates file
+                FileRepository.Instance.CopyDirectory($"{getTheme.Data.TemplateFolder}", $"{tempPath}/Templates");
+                // Copy current assets files
+                FileRepository.Instance.CopyDirectory($"wwwroot/{getTheme.Data.AssetFolder}", $"{tempPath}/Assets");
+                // Copy current uploads files
+                FileRepository.Instance.CopyDirectory($"wwwroot/{getTheme.Data.UploadsFolder}", $"{tempPath}/Uploads");
+                // Save Site Structures
+                FileRepository.Instance.SaveFile(file);
 
-            // Zip to [theme_name].zip ( wwwroot for web path)
-            string filePath = FileRepository.Instance.ZipFolder($"{tempPath}", outputPath, $"{getTheme.Data.Name}-{Guid.NewGuid()}");
+                // Zip to [theme_name].zip ( wwwroot for web path)
+                string filePath = FileRepository.Instance.ZipFolder($"{tempPath}", outputPath, $"{getTheme.Data.Name}-{Guid.NewGuid()}");
 
+                // Delete temp folder
+                FileRepository.Instance.DeleteWebFolder($"{outputPath}/Assets");
+                FileRepository.Instance.DeleteWebFolder($"{outputPath}/Uploads");
+                FileRepository.Instance.DeleteWebFolder($"{outputPath}/Templates");
+                FileRepository.Instance.DeleteWebFolder($"{outputPath}/Data");
 
-
-            // Delete temp folder
-            FileRepository.Instance.DeleteWebFolder($"{outputPath}/Assets");
-            FileRepository.Instance.DeleteWebFolder($"{outputPath}/Uploads");
-            FileRepository.Instance.DeleteWebFolder($"{outputPath}/Templates");
-            FileRepository.Instance.DeleteWebFolder($"{outputPath}/Data");
-
-            return new RepositoryResponse<string>()
+                return new RepositoryResponse<string>()
+                {
+                    IsSucceed = !string.IsNullOrEmpty(outputPath),
+                    Data = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/{filePath}"
+                };
+            }
+            else
             {
-                IsSucceed = !string.IsNullOrEmpty(outputPath),
-                Data = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/{filePath}"
-            };
+                return result;
+            }
         }
 
         // GET api/theme/id
@@ -122,7 +126,7 @@ namespace Mix.Cms.Api.Controllers.v1
         [Route("delete/{id}")]
         public async Task<RepositoryResponse<MixTheme>> DeleteAsync(int id)
         {
-            return await base.DeleteAsync<UpdateViewModel>(
+            return await base.DeleteAsync<DeleteViewModel>(
                 model => model.Id == id, true);
         }
 
@@ -150,7 +154,7 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         var model = new MixTheme()
                         {
-                            Status = MixService.GetConfig<int>("DefaultStatus")
+                            Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus)
                             ,
                             Priority = UpdateViewModel.Repository.Max(a => a.Priority).Data + 1
                         };
@@ -173,7 +177,7 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         var model = new MixTheme()
                         {
-                            Status = MixService.GetConfig<int>("DefaultStatus")
+                            Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus)
                             ,
                             Priority = ReadViewModel.Repository.Max(a => a.Priority).Data + 1
                         };
@@ -183,7 +187,6 @@ namespace Mix.Cms.Api.Controllers.v1
                     }
             }
         }
-
 
         #endregion Get
 
@@ -196,20 +199,30 @@ namespace Mix.Cms.Api.Controllers.v1
         [Route("save")]
         public async Task<RepositoryResponse<UpdateViewModel>> Save([FromForm]string model, [FromForm]IFormFile assets, [FromForm]IFormFile theme)
         {
-            var json = JObject.Parse(model);
-            var data = json.ToObject<UpdateViewModel>();
+            var data = JsonConvert.DeserializeObject<UpdateViewModel>(model);
+
             if (assets != null)
             {
                 data.Asset = new Lib.ViewModels.FileViewModel(assets, data.AssetFolder);
-                FileRepository.Instance.SaveWebFile(assets, assets.FileName, data.AssetFolder);
+                FileRepository.Instance.SaveFile(assets, assets.FileName, data.AssetFolder);
             }
             if (theme != null)
             {
-                string importFolder = $"Imports/Themes/{DateTime.UtcNow.ToString("dd-MM-yyyy")}/{data.Name}";
+                string importFolder = $"wwwroot/Imports/Themes/{DateTime.UtcNow.ToString("dd-MM-yyyy")}/{data.Name}";
                 data.TemplateAsset = new Lib.ViewModels.FileViewModel(theme, importFolder);
-                FileRepository.Instance.SaveWebFile(theme, theme.FileName, importFolder);
+                FileRepository.Instance.SaveFile(theme, theme.FileName, importFolder);
             }
 
+            // Load default blank if created new without upload theme
+            if (data.Id==0 && theme ==null)
+            {
+                data.TemplateAsset = new Lib.ViewModels.FileViewModel()
+                {
+                    Filename = "default_blank",
+                    Extension = ".zip",
+                    FileFolder = "Imports/Themes"
+                };
+            }
 
             if (data != null)
             {
@@ -232,7 +245,6 @@ namespace Mix.Cms.Api.Controllers.v1
         public async Task<ActionResult<JObject>> GetList(
             [FromBody] RequestPaging request)
         {
-
             ParseRequestPagingDate(request);
             Expression<Func<MixTheme, bool>> predicate = model =>
                 string.IsNullOrWhiteSpace(request.Keyword)
@@ -245,15 +257,15 @@ namespace Mix.Cms.Api.Controllers.v1
                     || (model.CreatedDateTime <= request.ToDate.Value)
                 )
                     ;
-            string key = $"{request.Key}_{request.PageSize}_{request.PageIndex}";
             switch (request.Key)
             {
                 case "portal":
-                    var portalResult = await base.GetListAsync<UpdateViewModel>(key, request, predicate);
+                    var portalResult = await base.GetListAsync<UpdateViewModel>(request, predicate);
                     return Ok(JObject.FromObject(portalResult));
+
                 default:
 
-                    var listItemResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
+                    var listItemResult = await base.GetListAsync<ReadViewModel>(request, predicate);
 
                     return JObject.FromObject(listItemResult);
             }

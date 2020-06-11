@@ -20,6 +20,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("id")]
         public int Id { get; set; }
+        [JsonProperty("specificulture")]
+        public string Specificulture { get; set; }
+        [JsonProperty("cultures")]
+        public List<Domain.Core.Models.SupportedCulture> Cultures { get; set; }
 
         [JsonProperty("template")]
         public string Template { get; set; }
@@ -29,6 +33,10 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
 
         [JsonProperty("image")]
         public string Image { get; set; }
+
+        [JsonIgnore]
+        [JsonProperty("extraFields")]
+        public string ExtraFields { get; set; } = "[]";
 
         [JsonIgnore]
         [JsonProperty("extraProperties")]
@@ -65,31 +73,29 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public int? Views { get; set; }
 
         [JsonProperty("type")]
-        public int Type { get; set; }
-
-        [JsonProperty("createdDateTime")]
-        public DateTime CreatedDateTime { get; set; }
+        public MixEnums.MixContentStatus Type { get; set; }
 
         [JsonProperty("publishedDateTime")]
         public DateTime? PublishedDateTime { get; set; }
 
-        [JsonProperty("createdBy")]
+        [JsonProperty("tags")]
+        public string Tags { get; set; } = "[]";
+
         public string CreatedBy { get; set; }
-
-        [JsonProperty("lastModified")]
-        public DateTime? LastModified { get; set; }
-
+        [JsonProperty("createdDateTime")]
+        public DateTime CreatedDateTime { get; set; }
         [JsonProperty("modifiedBy")]
         public string ModifiedBy { get; set; }
-
-        [JsonProperty("tags")]
-        public string Tags { get; set; }
-
+        [JsonProperty("lastModified")]
+        public DateTime? LastModified { get; set; }
+        [JsonProperty("priority")]
+        public int Priority { get; set; }
         [JsonProperty("status")]
         public MixEnums.MixContentStatus Status { get; set; }
         #endregion Models
 
         #region Views
+
         [JsonProperty("detailsUrl")]
         public string DetailsUrl { get; set; }
 
@@ -103,10 +109,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public string Domain { get { return MixService.GetConfig<string>("Domain"); } }
 
         [JsonProperty("imageUrl")]
-        public string ImageUrl
-        {
-            get
-            {
+        public string ImageUrl {
+            get {
                 if (!string.IsNullOrEmpty(Image) && (Image.IndexOf("http") == -1) && Image[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -121,10 +125,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         }
 
         [JsonProperty("thumbnailUrl")]
-        public string ThumbnailUrl
-        {
-            get
-            {
+        public string ThumbnailUrl {
+            get {
                 if (Thumbnail != null && Thumbnail.IndexOf("http") == -1 && Thumbnail[0] != '/')
                 {
                     return CommonHelper.GetFullPath(new string[] {
@@ -138,10 +140,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             }
         }
 
-        public string TemplatePath
-        {
-            get
-            {
+        public string TemplatePath {
+            get {
                 return CommonHelper.GetFullPath(new string[]
                 {
                     ""
@@ -151,6 +151,7 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                 });
             }
         }
+
         //[JsonProperty("properties")]
         //public List<ExtraProperty> Properties { get; set; }
 
@@ -164,13 +165,16 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
         public List<MixPostPosts.ReadViewModel> PostNavs { get; set; }
 
         [JsonProperty("attributeSets")]
-        public List<MixAttributeSets.ReadMvcPostViewModel> AttributeSets { get; set; } = new List<MixAttributeSets.ReadMvcPostViewModel>();
+        public List<MixAttributeSets.ReadViewModel> AttributeSets { get; set; } = new List<MixAttributeSets.ReadViewModel>();
 
         [JsonProperty("listTag")]
         public JArray ListTag { get => JArray.Parse(Tags ?? "[]"); }
 
         [JsonProperty("attributeData")]
         public MixRelatedAttributeDatas.ReadMvcViewModel AttributeData { get; set; }
+        
+        [JsonProperty("sysTags")]
+        public List<MixRelatedAttributeDatas.FormViewModel> SysTags { get; set; }
         #endregion Views
 
         #endregion Properties
@@ -194,19 +198,8 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             //Load Template + Style +  Scripts for views
             this.View = MixTemplates.ReadListItemViewModel.GetTemplateByPath(Template, Specificulture, _context, _transaction).Data;
 
-            //Properties = new List<ExtraProperty>();
-
-            //if (!string.IsNullOrEmpty(ExtraProperties))
-            //{
-            //    JArray arr = JArray.Parse(ExtraProperties);
-            //    foreach (JToken item in arr)
-            //    {
-            //        Properties.Add(item.ToObject<ExtraProperty>());
-            //    }
-            //}
-
             LoadAttributes(_context, _transaction);
-
+            LoadTags(_context, _transaction);
             var getPostMedia = MixPostMedias.ReadViewModel.Repository.GetModelListBy(n => n.PostId == Id && n.Specificulture == Specificulture, _context, _transaction);
             if (getPostMedia.IsSucceed)
             {
@@ -230,18 +223,26 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             // Related Posts
             PostNavs = MixPostPosts.ReadViewModel.Repository.GetModelListBy(n => n.SourceId == Id && n.Specificulture == Specificulture, _context, _transaction).Data;
 
-            // Get Attribute Sets
-            var navs = MixPostAttributeSets.ReadMvcViewModel.Repository.GetModelListBy(n => n.PostId == Id && n.Specificulture == Specificulture, _context, _transaction).Data;
-            foreach (var item in navs)
+        }
+
+        private void LoadTags(MixCmsContext context, IDbContextTransaction transaction)
+        {
+            var getTags = MixRelatedAttributeDatas.FormViewModel.Repository.GetModelListBy(m => m.Specificulture == Specificulture
+                   && m.ParentId == Id.ToString() && m.ParentType == MixEnums.MixAttributeSetDataType.Post.ToString()
+                   && m.AttributeSetName == MixConstants.AttributeSetName.SYSTEM_TAG, context, transaction);
+            if (getTags.IsSucceed)
             {
-                AttributeSets.Add(item.MixAttributeSet);
+                SysTags = getTags.Data;
             }
         }
 
         #endregion Overrides
 
         #region Expands
-        
+
+        /// <summary>Loads the attributes.</summary>
+        /// <param name="_context">The context.</param>
+        /// <param name="_transaction">The transaction.</param>
         private void LoadAttributes(MixCmsContext _context, IDbContextTransaction _transaction)
         {
             var getAttrs = MixAttributeSets.UpdateViewModel.Repository.GetSingleModel(m => m.Name == MixConstants.AttributeSetName.ADDITIONAL_FIELD_POST, _context, _transaction);
@@ -252,6 +253,11 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
                     , _context, _transaction).Data;
             }
         }
+
+        /// <summary>Get Post's Property by type and name</summary>
+        /// <typeparam name="T">Type of field</typeparam>
+        /// <param name="fieldName">Name of the field.</param>
+        /// <returns>T</returns>
         public T Property<T>(string fieldName)
         {
             if (AttributeData != null)
@@ -270,15 +276,20 @@ namespace Mix.Cms.Lib.ViewModels.MixPosts
             {
                 return default;
             }
-
         }
 
+        /// <summary>Gets the module.</summary>
+        /// <param name="name">The name.</param>
+        /// <returns>MixModules.ReadMvcViewModel</returns>
         public MixModules.ReadMvcViewModel GetModule(string name)
         {
             return ModuleNavs.FirstOrDefault(m => m.Module.Name == name)?.Module;
         }
 
-        public MixAttributeSets.ReadMvcPostViewModel GetAttributeSet(string name)
+        /// <summary>Gets the attribute set.</summary>
+        /// <param name="name">The name.</param>
+        /// <returns>MixAttributeSets.ReadMvcViewModel</returns>
+        public MixAttributeSets.ReadViewModel GetAttributeSet(string name)
         {
             return AttributeSets.FirstOrDefault(m => m.Name == name);
         }

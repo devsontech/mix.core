@@ -5,7 +5,9 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Mix.Cms.Lib;
 using Mix.Cms.Lib.Attributes;
 using Mix.Cms.Lib.Models.Cms;
 using Mix.Cms.Lib.Services;
@@ -24,10 +26,10 @@ namespace Mix.Cms.Api.Controllers.v1
     public class ApiAttributeFieldController :
         BaseGenericApiController<MixCmsContext, MixAttributeField>
     {
-        public ApiAttributeFieldController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Hub.PortalHub> hubContext) : base(context, memoryCache, hubContext)
+        public ApiAttributeFieldController(MixCmsContext context, IMemoryCache memoryCache, Microsoft.AspNetCore.SignalR.IHubContext<Mix.Cms.Service.SignalR.Hubs.PortalHub> hubContext) : base(context, memoryCache, hubContext)
         {
-
         }
+
         #region Get
 
         // GET api/attribute-field/id
@@ -59,7 +61,7 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         var model = new MixAttributeField()
                         {
-                            Status = MixService.GetConfig<int>("DefaultStatus")
+                            Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus)
                             ,
                             Priority = UpdateViewModel.Repository.Max(a => a.Priority).Data + 1
                         };
@@ -78,7 +80,7 @@ namespace Mix.Cms.Api.Controllers.v1
                     {
                         var model = new MixAttributeField()
                         {
-                            Status = MixService.GetConfig<int>("DefaultStatus")
+                            Status = MixService.GetConfig<string>(MixConstants.ConfigurationKeyword.DefaultContentStatus)
                             ,
                             Priority = ReadViewModel.Repository.Max(a => a.Priority).Data + 1
                         };
@@ -130,21 +132,20 @@ namespace Mix.Cms.Api.Controllers.v1
         public async Task<ActionResult<JObject>> GetList(
             [FromBody] RequestPaging request)
         {
-
             ParseRequestPagingDate(request);
             Expression<Func<MixAttributeField, bool>> predicate = model =>
-                string.IsNullOrWhiteSpace(request.Keyword)
-                    || (model.Name.Contains(request.Keyword)
+                (string.IsNullOrWhiteSpace(request.Keyword)
+                    || (EF.Functions.Like(model.Name, $"%{request.Keyword}%"))
                     );
-            string key = $"{request.Key}_{request.PageSize}_{request.PageIndex}";
             switch (request.Key)
             {
                 case "portal":
-                    var portalResult = await base.GetListAsync<UpdateViewModel>(key, request, predicate);
+                    var portalResult = await base.GetListAsync<UpdateViewModel>(request, predicate);
                     return Ok(JObject.FromObject(portalResult));
+
                 default:
 
-                    var listItemResult = await base.GetListAsync<ReadViewModel>(key, request, predicate);
+                    var listItemResult = await base.GetListAsync<ReadViewModel>(request, predicate);
 
                     return JObject.FromObject(listItemResult);
             }
